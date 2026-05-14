@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="theme-color" content="#1a6b3c"/>
+<title>เช็คอิน - เช็คเอาต์</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --green:       #1a6b3c;
+  --green-light: #e8f5ee;
+  --green-mid:   #a0d8b0;
+  --blue-light:  #ddeeff;
+  --blue:        #1855a0;
+  --amber-light: #fef3d0;
+  --amber:       #8b5e08;
+  --red-light:   #fce8e0;
+  --red:         #9e3a1a;
+  --gray-light:  #f5f5f5;
+  --gray:        #888;
+  --border:      rgba(0,0,0,0.1);
+  --text:        #1a1a1a;
+  --text-muted:  #666;
+  --bg:          #f0f4f1;
+  --card:        #ffffff;
+  --radius:      14px;
+  --radius-sm:   8px;
+  --shadow:      0 2px 12px rgba(0,0,0,0.08);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.5;overscroll-behavior:none}
+body{display:flex;flex-direction:column;max-width:480px;margin:0 auto;min-height:100dvh;position:relative;background:var(--bg)}
+
+/* ── Header ─────────────────────────────── */
+.app-header{background:var(--green);color:#fff;padding:env(safe-area-inset-top, 0) 0 0;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,0.2)}
+.header-inner{padding:14px 20px 14px}
+.header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}
+.header-top h1{font-size:20px;font-weight:600;color:#fff;letter-spacing:-0.3px}
+.header-badge{font-size:11px;background:rgba(255,255,255,0.2);color:#fff;padding:3px 10px;border-radius:20px;font-weight:500}
+.header-sub{font-size:12px;opacity:.75;color:#fff}
+
+/* ── Screens ─────────────────────────────── */
+.screen{display:none;flex-direction:column;flex:1;animation:fadeIn .2s ease}
+.screen.active{display:flex}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.content{padding:16px;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:80px}
+
+/* ── Tab Bar ─────────────────────────────── */
+.tab-bar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#fff;border-top:1px solid var(--border);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom,0)}
+.tab-item{flex:1;padding:10px 4px 8px;text-align:center;font-size:11px;color:var(--text-muted);background:none;border:none;font-family:'Sarabun',sans-serif;cursor:pointer;transition:color .15s;display:flex;flex-direction:column;align-items:center;gap:3px}
+.tab-item.active{color:var(--green)}
+.tab-icon{font-size:20px;line-height:1}
+
+/* ── Cards ─────────────────────────────── */
+.card{background:var(--card);border-radius:var(--radius);padding:14px 16px;margin-bottom:12px;box-shadow:var(--shadow)}
+.card-title{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px}
+.date-chip{display:inline-flex;align-items:center;gap:6px;background:var(--green-light);color:var(--green);font-size:12px;font-weight:600;padding:6px 12px;border-radius:20px;margin-bottom:14px}
+
+/* ── Employee List ─────────────────────────────── */
+.emp-row{display:flex;align-items:center;gap:12px;padding:10px 6px;border-bottom:1px solid rgba(0,0,0,0.05);cursor:pointer;border-radius:10px;transition:background .15s;position:relative}
+.emp-row:last-child{border-bottom:none}
+.emp-row:active{background:var(--gray-light)}
+.avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0}
+.av-g{background:#d0f0e0;color:#1a6b3c}
+.av-b{background:#ddeeff;color:#1855a0}
+.av-a{background:#fef3d0;color:#8b5e08}
+.av-c{background:#fce8e0;color:#9e3a1a}
+.emp-info{flex:1;min-width:0}
+.emp-name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.emp-role{font-size:12px;color:var(--text-muted)}
+.emp-status{display:flex;align-items:center;gap:6px;flex-shrink:0}
+
+/* ── Badges ─────────────────────────────── */
+.badge{font-size:11px;font-weight:600;padding:3px 9px;border-radius:12px;white-space:nowrap}
+.b-in{background:var(--green-light);color:var(--green)}
+.b-out{background:var(--blue-light);color:var(--blue)}
+.b-done{background:#e8e8e8;color:#555}
+.b-pend{background:var(--amber-light);color:var(--amber)}
+
+/* ── Forms ─────────────────────────────── */
+.form-group{margin-bottom:14px}
+.form-label{display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:6px}
+.form-input{width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;background:#fff;color:var(--text);font-family:'Sarabun',sans-serif;outline:none;transition:border-color .2s}
+.form-input:focus{border-color:var(--green)}
+textarea.form-input{resize:none;height:80px}
+
+/* ── Type Toggle ─────────────────────────────── */
+.type-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.type-btn{padding:12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer;text-align:center;background:#fff;color:var(--text-muted);font-family:'Sarabun',sans-serif;transition:all .2s}
+.type-btn.active-in{background:var(--green-light);color:var(--green);border-color:var(--green)}
+.type-btn.active-out{background:var(--blue-light);color:var(--blue);border-color:var(--blue)}
+.type-btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* ── Location Box ─────────────────────────────── */
+.loc-box{display:flex;align-items:center;gap:10px;padding:11px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;color:var(--text-muted);transition:all .2s;background:#fff}
+.loc-box:active{background:var(--gray-light)}
+.loc-box.got{border-color:var(--green);background:var(--green-light);color:var(--green)}
+.loc-dot{width:10px;height:10px;border-radius:50%;background:currentColor;flex-shrink:0;opacity:.5}
+.loc-box.got .loc-dot{opacity:1}
+.loc-txt{font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ── Photo Boxes ─────────────────────────────── */
+.photo-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.photo-box{aspect-ratio:4/3;border:2px dashed var(--border);border-radius:var(--radius-sm);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;gap:6px;position:relative;overflow:hidden;background:var(--gray-light);transition:all .2s}
+.photo-box:active{opacity:.8}
+.photo-box.captured{border-style:solid;border-color:var(--green);background:#fff}
+.photo-box .ph-label{font-size:11px;color:var(--text-muted);font-weight:500}
+.photo-box.captured .ph-label{display:none}
+.photo-box .ph-icon{font-size:22px;opacity:.4}
+.photo-box.captured .ph-icon{display:none}
+.prev-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none}
+.photo-box.captured .prev-img{display:block}
+.photo-cap-label{position:absolute;bottom:0;left:0;right:0;background:rgba(26,107,60,.8);color:#fff;font-size:10px;text-align:center;padding:3px;font-weight:500}
+
+/* ── Lock Banner ─────────────────────────────── */
+.lock-banner{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:var(--radius-sm);font-size:13px;margin-bottom:14px;line-height:1.5}
+.lock-in{background:var(--green-light);color:var(--green);border:1px solid var(--green-mid)}
+.lock-admin{background:var(--amber-light);color:var(--amber);border:1px solid #e8c870}
+.lock-icon{font-size:18px;flex-shrink:0;margin-top:1px}
+
+/* ── Buttons ─────────────────────────────── */
+.btn-primary{width:100%;padding:14px;background:var(--green);color:#fff;border:none;border-radius:var(--radius-sm);font-size:16px;font-weight:600;cursor:pointer;font-family:'Sarabun',sans-serif;transition:opacity .15s;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-primary:active{opacity:.85}
+.btn-primary:disabled{opacity:.45;cursor:not-allowed}
+.btn-secondary{width:100%;padding:12px;background:transparent;color:var(--text-muted);border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;cursor:pointer;margin-top:10px;font-family:'Sarabun',sans-serif;transition:background .15s}
+.btn-secondary:active{background:var(--gray-light)}
+.btn-danger{width:100%;padding:12px;background:transparent;color:var(--red);border:1.5px solid #f0b090;border-radius:var(--radius-sm);font-size:15px;cursor:pointer;margin-top:10px;font-family:'Sarabun',sans-serif}
+
+/* ── Back Button ─────────────────────────────── */
+.back-btn{display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--text-muted);cursor:pointer;padding:6px 0;margin-bottom:14px;background:none;border:none;font-family:'Sarabun',sans-serif}
+
+/* ── Success Screen ─────────────────────────────── */
+.success-wrap{text-align:center;padding:24px 16px 16px}
+.s-icon{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:28px}
+.s-icon.green{background:var(--green-light)}
+.s-icon.red{background:var(--red-light)}
+.s-title{font-size:20px;font-weight:600;margin-bottom:8px}
+.s-sub{font-size:14px;color:var(--text-muted);line-height:1.6;margin-bottom:20px}
+.sheets-badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#166534;background:#dcfce7;padding:5px 12px;border-radius:14px}
+
+/* ── Detail Rows ─────────────────────────────── */
+.detail-row{display:flex;justify-content:space-between;align-items:flex-start;padding:10px 0;border-bottom:1px solid rgba(0,0,0,0.06)}
+.detail-row:last-child{border-bottom:none}
+.dk{font-size:13px;color:var(--text-muted);flex-shrink:0}
+.dv{font-size:13px;font-weight:600;text-align:right;max-width:65%;word-break:break-all}
+
+/* ── Alert Box ─────────────────────────────── */
+.alert{padding:12px 14px;border-radius:var(--radius-sm);font-size:13px;line-height:1.5;margin-bottom:12px}
+.alert-warn{background:var(--amber-light);color:var(--amber);border:1px solid #e8c870}
+.alert-info{background:var(--green-light);color:var(--green);border:1px solid var(--green-mid)}
+.alert-err{background:var(--red-light);color:var(--red);border:1px solid #f0b090}
+
+/* ── Admin Panel ─────────────────────────────── */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.stat-card{background:var(--card);border-radius:var(--radius-sm);padding:14px;box-shadow:var(--shadow);text-align:center}
+.stat-num{font-size:28px;font-weight:600;color:var(--green);line-height:1}
+.stat-lbl{font-size:11px;color:var(--text-muted);margin-top:4px}
+.admin-rec{display:flex;align-items:center;gap:10px;padding:10px 6px;border-bottom:1px solid rgba(0,0,0,0.06)}
+.admin-rec:last-child{border-bottom:none}
+.admin-rec-info{flex:1;min-width:0}
+.admin-rec-name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.admin-rec-sub{font-size:11px;color:var(--text-muted)}
+.btn-del{font-size:11px;padding:4px 10px;border:1.5px solid #f0b090;border-radius:6px;background:none;cursor:pointer;color:var(--red);font-family:'Sarabun',sans-serif;white-space:nowrap;flex-shrink:0}
+
+/* ── Modal ─────────────────────────────── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;display:none;align-items:flex-end;justify-content:center;padding:0}
+.modal-overlay.open{display:flex;animation:slideUp .25s ease}
+@keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.modal-box{background:#fff;border-radius:24px 24px 0 0;padding:24px 20px;width:100%;max-width:480px;padding-bottom:calc(env(safe-area-inset-bottom,0) + 24px)}
+.modal-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 18px}
+.modal-title{font-size:18px;font-weight:600;margin-bottom:6px}
+.modal-sub{font-size:14px;color:var(--text-muted);margin-bottom:20px;line-height:1.5}
+
+/* ── Spinner ─────────────────────────────── */
+.spinner{width:18px;height:18px;border:2.5px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Settings ─────────────────────────────── */
+.setting-row{display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-bottom:1px solid rgba(0,0,0,.06)}
+.setting-row:last-child{border-bottom:none}
+.setting-lbl{font-size:14px;font-weight:500}
+.setting-sub{font-size:12px;color:var(--text-muted);margin-top:2px}
+.toggle{width:44px;height:26px;background:var(--border);border-radius:13px;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
+.toggle.on{background:var(--green)}
+.toggle::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.toggle.on::after{transform:translateX(18px)}
+
+/* ── History ─────────────────────────────── */
+.hist-card{background:var(--card);border-radius:var(--radius);padding:12px 14px;margin-bottom:8px;box-shadow:var(--shadow);display:flex;justify-content:space-between;align-items:flex-start}
+.hist-info .hname{font-size:14px;font-weight:600}
+.hist-info .hdate{font-size:12px;color:var(--text-muted);margin-top:2px}
+.hist-right{display:flex;align-items:center;gap:6px}
+.lock-icon-sm{font-size:13px;opacity:.5}
+
+/* ── Toast ─────────────────────────────── */
+.toast{position:fixed;top:80px;left:50%;transform:translateX(-50%) translateY(-10px);background:#1a1a1a;color:#fff;font-size:13px;padding:10px 18px;border-radius:20px;z-index:300;opacity:0;transition:all .3s;white-space:nowrap;pointer-events:none;font-family:'Sarabun',sans-serif}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── Empty State ─────────────────────────────── */
+.empty{text-align:center;padding:40px 20px;color:var(--text-muted)}
+.empty-icon{font-size:40px;margin-bottom:12px;opacity:.4}
+.empty-text{font-size:14px}
+
+/* ── URL Config ─────────────────────────────── */
+.url-wrap{display:flex;gap:8px}
+.url-wrap input{flex:1;font-size:12px}
+.btn-save-url{padding:0 16px;background:var(--green);color:#fff;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;font-family:'Sarabun',sans-serif;white-space:nowrap}
+</style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<div class="app-header">
+  <div class="header-inner">
+    <div class="header-top">
+      <h1>เช็คอิน - เช็คเอาต์</h1>
+      <span class="header-badge" id="hdr-badge">พนักงาน</span>
+    </div>
+    <div class="header-sub" id="hdr-date">กำลังโหลด...</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     SCREEN: HOME
+═══════════════════════════════════════════ -->
+<div class="screen active" id="s-home">
+  <div class="content">
+    <div class="date-chip" id="date-chip">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="11" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M5 2v2M11 2v2M2 7h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <span id="date-chip-txt">วันนี้</span>
+    </div>
+
+    <div class="card">
+      <div class="card-title">รายชื่อพนักงาน</div>
+      <div id="emp-list">
+        <div class="empty"><div class="empty-icon">👥</div><div class="empty-text">ยังไม่มีรายชื่อพนักงาน<br/>กรุณาตั้งค่าก่อน</div></div>
+      </div>
+    </div>
+
+    <button class="btn-secondary" onclick="gotoAdminLogin()" style="margin-top:4px">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" style="vertical-align:middle;margin-right:6px"><path d="M8 1a3 3 0 100 6 3 3 0 000-6zM2 13c0-2.8 2.7-5 6-5s6 2.2 6 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      เข้าสู่ระบบ Admin
+    </button>
+  </div>
+  <div class="tab-bar">
+    <button class="tab-item active" onclick="showTab('home')"><span class="tab-icon">🏠</span>หน้าหลัก</button>
+    <button class="tab-item" onclick="showTab('history')"><span class="tab-icon">📋</span>ประวัติ</button>
+    <button class="tab-item" onclick="showTab('settings')"><span class="tab-icon">⚙️</span>ตั้งค่า</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     SCREEN: FORM
+═══════════════════════════════════════════ -->
+<div class="screen" id="s-form">
+  <div class="content">
+    <button class="back-btn" onclick="goBack()">
+      <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M10 12L6 8l4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>กลับ
+    </button>
+
+    <div id="lock-banner-area"></div>
+
+    <div class="type-row" id="type-row">
+      <button class="type-btn active-in" id="btn-in" onclick="setType('in')">📥 เช็คอิน</button>
+      <button class="type-btn" id="btn-out" onclick="setType('out')">📤 เช็คเอาต์</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">ข้อมูลพนักงาน</div>
+      <div class="form-group">
+        <label class="form-label">ชื่อพนักงาน *</label>
+        <input type="text" class="form-input" id="f-name" placeholder="กรอกชื่อ-นามสกุล"/>
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">ตำแหน่ง / แผนก</label>
+        <input type="text" class="form-input" id="f-dept" placeholder="เช่น ฝ่ายขาย, ฝ่าย IT"/>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" id="time-lbl">เวลาเข้างาน</div>
+      <div class="form-group">
+        <label class="form-label">เวลา *</label>
+        <input type="time" class="form-input" id="f-time"/>
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">ตำแหน่ง GPS</label>
+        <div class="loc-box" id="loc-box" onclick="getLocation()">
+          <div class="loc-dot"></div>
+          <span class="loc-txt" id="loc-txt">แตะเพื่อรับตำแหน่ง GPS</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">รูปถ่าย</div>
+      <div class="photo-row">
+        <div class="photo-box" id="pb1" onclick="capturePhoto(1)">
+          <div class="ph-icon">📷</div>
+          <img class="prev-img" id="pv1" src="" alt=""/>
+          <span class="ph-label">ถ่ายรูป</span>
+          <span class="photo-cap-label" id="pcap1" style="display:none">ถ่ายแล้ว ✓</span>
+        </div>
+        <div class="photo-box" id="pb2" onclick="capturePhoto(2)">
+          <div class="ph-icon">🤳</div>
+          <img class="prev-img" id="pv2" src="" alt=""/>
+          <span class="ph-label">ยืนยันตัวตน</span>
+          <span class="photo-cap-label" id="pcap2" style="display:none">ถ่ายแล้ว ✓</span>
+        </div>
+      </div>
+      <!-- hidden file inputs for real camera -->
+      <input type="file" id="cam1" accept="image/*" capture="environment" style="display:none" onchange="loadPhoto(event,1)"/>
+      <input type="file" id="cam2" accept="image/*" capture="user" style="display:none" onchange="loadPhoto(event,2)"/>
+    </div>
+
+    <div class="card">
+      <div class="card-title">หมายเหตุ</div>
+      <textarea class="form-input" id="f-note" placeholder="หมายเหตุเพิ่มเติม (ถ้ามี)..."></textarea>
+    </div>
+
+    <button class="btn-primary" id="sub-btn" onclick="submitRecord()">
+      <span id="sub-lbl">บันทึกเวลาเข้างาน</span>
+    </button>
+    <div style="height:10px"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     SCREEN: SUCCESS
+═══════════════════════════════════════════ -->
+<div class="screen" id="s-success">
+  <div class="content">
+    <div class="success-wrap">
+      <div class="s-icon green" id="s-icon">✅</div>
+      <div class="s-title" id="s-title">บันทึกสำเร็จ!</div>
+      <div class="s-sub" id="s-sub">ข้อมูลถูกส่งไปยัง Google Sheets แล้ว</div>
+      <div class="sheets-badge" id="s-badge">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M10 1H4a1 1 0 00-1 1v12a1 1 0 001 1h9a1 1 0 001-1V5l-4-4z" stroke="currentColor" stroke-width="1.2"/><path d="M10 1v4h4M5 8h6M5 10.5h6M5 13h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        บันทึกลง Google Sheets แล้ว
+      </div>
+    </div>
+    <div class="card" id="sum-card"></div>
+    <button class="btn-primary" onclick="goHome()" style="margin-top:4px">กลับหน้าหลัก</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     SCREEN: HISTORY
+═══════════════════════════════════════════ -->
+<div class="screen" id="s-history">
+  <div class="content">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div style="font-size:18px;font-weight:600">ประวัติการบันทึก</div>
+      <div style="font-size:12px;color:var(--text-muted)" id="hist-count">0 รายการ</div>
+    </div>
+    <div id="hist-list"></div>
+  </div>
+  <div class="tab-bar">
+    <button class="tab-item" onclick="showTab('home')"><span class="tab-icon">🏠</span>หน้าหลัก</button>
+    <button class="tab-item active" onclick="showTab('history')"><span class="tab-icon">📋</span>ประวัติ</button>
+    <button class="tab-item" onclick="showTab('settings')"><span class="tab-icon">⚙️</span>ตั้งค่า</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     SCREEN: SETTINGS
+═══════════════════════════════════════════ -->
+<div class="screen" id="s-settings">
+  <div class="content">
+    <div style="font-size:18px;font-weight:600;margin-bottom:16px">ตั้งค่า</div>
+
+    <div class="card">
+      <div class="card-title">Google Sheets</div>
+      <div class="alert alert-warn" style="font-size:13px">
+        วาง Web App URL จาก Google Apps Script เพื่อเชื่อมต่อและส่งข้อมูลจริง
+      </div>
+      <div class="form-group">
+        <label class="form-label">Web App URL</label>
+        <div class="url-wrap">
+          <input type="url" class="form-input" id="set-url" placeholder="https://script.google.com/macros/s/.../exec"/>
+          <button class="btn-save-url" onclick="saveUrl()">บันทึก</button>
+        </div>
+        <div id="url-st" style="font-size:12px;color:var(--text-muted);margin-top:6px"></div>
+      </div>
+      <button onclick="testConn()" style="padding:8px 16px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:none;font-size:13px;cursor:pointer;font-family:'Sarabun',sans-serif;color:var(--text)">
+        🔌 ทดสอบการเชื่อมต่อ
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">รายชื่อพนักงาน</div>
+      <div id="emp-setting-list"></div>
+      <button class="btn-secondary" onclick="addEmpPrompt()" style="margin-top:10px;font-size:13px">+ เพิ่มพนักงาน</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">ตัวเลือก</div>
+      <div class="setting-row">
+        <div><div class="setting-lbl">บังคับถ่ายรูป</div><div class="setting-sub">ต้องถ่ายรูปก่อนบันทึก</div></div>
+        <div class="toggle" id="tgl-photo" onclick="toggleSetting('requirePhoto')"></div>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-lbl">บังคับ GPS</div><div class="setting-sub">ต้องรับตำแหน่งก่อนบันทึก</div></div>
+        <div class="toggle" id="tgl-gps" onclick="toggleSetting('requireGPS')"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">ข้อมูล</div>
+      <div class="detail-row"><span class="dk">รายการทั้งหมด</span><span class="dv" id="rec-count">0 รายการ</span></div>
+      <div class="detail-row"><span class="dk">เวอร์ชัน</span><span class="dv">2.0.0</span></div>
+    </div>
+    <div style="height:10px"></div>
+  </div>
+  <div class="tab-bar">
+    <button class="tab-item" onclick="showTab('home')"><span class="tab-icon">🏠</span>หน้าหลัก</button>
+    <button class="tab-item" onclick="showTab('history')"><span class="tab-icon">📋</span>ประวัติ</button>
+    <button class="tab-item active" onclick="showTab('settings')"><span class="tab-icon">⚙️</span>ตั้งค่า</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     SCREEN: ADMIN LOGIN
+═══════════════════════════════════════════ -->
+<div class="screen" id="s-admin-login">
+  <div class="content" style="display:flex;align-items:center;justify-content:center;min-height:60vh">
+    <div style="width:100%">
+      <div style="text-align:center;margin-bottom:24px">
+        <div style="font-size:48px;margin-bottom:12px">🔐</div>
+        <div style="font-size:20px;font-weight:600;margin-bottom:6px">Admin</div>
+        <div style="font-size:14px;color:var(--text-muted)">กรุณากรอกรหัสผ่านเพื่อจัดการข้อมูล</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">รหัสผ่าน</label>
+        <input type="password" class="form-input" id="admin-pw" placeholder="กรอกรหัสผ่าน" onkeydown="if(event.key==='Enter')checkAdmin()"/>
+      </div>
+      <div id="admin-err" class="alert alert-err" style="display:none">รหัสผ่านไม่ถูกต้อง</div>
+      <button class="btn-primary" onclick="checkAdmin()" style="margin-top:8px">เข้าสู่ระบบ</button>
+      <button class="btn-secondary" onclick="goBack()">ยกเลิก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     SCREEN: ADMIN PANEL
+═══════════════════════════════════════════ -->
+<div class="screen" id="s-admin">
+  <div class="content">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div>
+        <div style="font-size:18px;font-weight:600">แผงควบคุม Admin</div>
+        <div style="font-size:12px;color:var(--text-muted)">สิทธิ์พิเศษ — จัดการข้อมูลทั้งหมด</div>
+      </div>
+      <button onclick="logoutAdmin()" style="font-size:12px;padding:6px 12px;border:1.5px solid #f0b090;border-radius:var(--radius-sm);background:none;cursor:pointer;color:var(--red);font-family:'Sarabun',sans-serif">ออก</button>
+    </div>
+    <div class="stat-grid">
+      <div class="stat-card"><div class="stat-num" id="adm-today">0</div><div class="stat-lbl">รายการวันนี้</div></div>
+      <div class="stat-card"><div class="stat-num" id="adm-total">0</div><div class="stat-lbl">รายการทั้งหมด</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">รายการล่าสุด (Admin จัดการได้)</div>
+      <div id="adm-records"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">การดำเนินการ</div>
+      <button class="btn-primary" onclick="adminAddRecord()" style="margin-top:0">+ เพิ่มบันทึกใหม่ (Admin)</button>
+      <button class="btn-danger" onclick="confirmReset()">🗑 ล้างข้อมูลทั้งหมด</button>
+    </div>
+    <div class="card">
+      <div class="card-title">เปลี่ยนรหัสผ่าน Admin</div>
+      <div class="form-group">
+        <label class="form-label">รหัสผ่านใหม่</label>
+        <input type="password" class="form-input" id="new-pw" placeholder="อย่างน้อย 4 ตัวอักษร"/>
+      </div>
+      <button class="btn-secondary" onclick="changePw()" style="margin-top:0">บันทึกรหัสผ่านใหม่</button>
+    </div>
+    <div style="height:20px"></div>
+  </div>
+</div>
+
+<!-- ── Toast ── -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════
+var records  = [];
+var settings = { url:'', requirePhoto:false, requireGPS:false };
+var employees = [];
+var adminPw  = 'admin1234';
+var isAdmin  = false;
+var currentType = 'in';
+var currentEmpId = null;
+var locationData = null;
+var photo1Data = null;
+var photo2Data = null;
+
+try { records   = JSON.parse(localStorage.getItem('att_recs')  || '[]'); }  catch(e){}
+try { settings  = Object.assign(settings, JSON.parse(localStorage.getItem('att_cfg') || '{}')); } catch(e){}
+try { employees = JSON.parse(localStorage.getItem('att_emps')  || '[]'); }  catch(e){}
+try { adminPw   = localStorage.getItem('att_pw') || 'admin1234'; }          catch(e){}
+
+if (employees.length === 0) {
+  employees = [
+    {id:'E001', name:'สมชาย ใจดี',    role:'ฝ่ายขาย',   av:'สช', cls:'av-g'},
+    {id:'E002', name:'สมหญิง รักงาน', role:'ฝ่ายบัญชี', av:'สญ', cls:'av-b'},
+    {id:'E003', name:'วิชัย มั่นใจ',  role:'ฝ่าย IT',   av:'วช', cls:'av-a'},
+    {id:'E004', name:'นิดา สุขใส',    role:'ฝ่าย HR',   av:'นด', cls:'av-c'},
+  ];
+  saveEmps();
+}
+
+// ════════════════════════════════════════════
+//  UTILS
+// ════════════════════════════════════════════
+function pad(n){ return n.toString().padStart(2,'0'); }
+function todayStr(){
+  var n=new Date();
+  return n.getFullYear()+'-'+pad(n.getMonth()+1)+'-'+pad(n.getDate());
+}
+function nowStr(){
+  var n=new Date();
+  return pad(n.getHours())+':'+pad(n.getMinutes());
+}
+function saveRecs(){ try{localStorage.setItem('att_recs', JSON.stringify(records));}catch(e){} }
+function saveCfg(){  try{localStorage.setItem('att_cfg',  JSON.stringify(settings));}catch(e){} }
+function saveEmps(){ try{localStorage.setItem('att_emps', JSON.stringify(employees));}catch(e){} }
+function toast(msg, dur){
+  var t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, dur||2200);
+}
+
+// ════════════════════════════════════════════
+//  CLOCK & DATE
+// ════════════════════════════════════════════
+function updateDateTime(){
+  var n = new Date();
+  var days=['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
+  var months=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  var dateStr = 'วัน'+days[n.getDay()]+' '+n.getDate()+' '+months[n.getMonth()]+' '+(n.getFullYear()+543);
+  var timeStr = pad(n.getHours())+':'+pad(n.getMinutes());
+  document.getElementById('hdr-date').textContent = dateStr+' · '+timeStr+' น.';
+  document.getElementById('date-chip-txt').textContent = dateStr;
+}
+updateDateTime();
+setInterval(updateDateTime, 30000);
+
+// ════════════════════════════════════════════
+//  SCREEN NAVIGATION
+// ════════════════════════════════════════════
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
+  document.getElementById(id).classList.add('active');
+}
+function showTab(t){
+  if(t==='home'){    renderHome();    showScreen('s-home');     }
+  else if(t==='history'){ renderHistory(); showScreen('s-history'); }
+  else if(t==='settings'){renderSettings();showScreen('s-settings');}
+}
+function goBack(){
+  if(isAdmin){ showScreen('s-admin'); }
+  else { renderHome(); showScreen('s-home'); }
+}
+function goHome(){ renderHome(); showScreen('s-home'); }
+
+// ════════════════════════════════════════════
+//  STATUS HELPERS
+// ════════════════════════════════════════════
+function getEmpRecord(empId, type){
+  return records.find(function(r){
+    return r.empId===empId && r.type===type && r.date===todayStr() && r.status!=='deleted';
+  });
+}
+function getEmpStatus(empId){
+  var hasIn  = !!getEmpRecord(empId,'in');
+  var hasOut = !!getEmpRecord(empId,'out');
+  if(hasIn && hasOut) return 'done';
+  if(hasIn)           return 'in';
+  return 'pending';
+}
+
+// ════════════════════════════════════════════
+//  RENDER HOME
+// ════════════════════════════════════════════
+function renderHome(){
+  var badge = document.getElementById('hdr-badge');
+  badge.textContent = isAdmin ? '👤 Admin' : 'พนักงาน';
+  var list = document.getElementById('emp-list');
+  if(employees.length===0){
+    list.innerHTML='<div class="empty"><div class="empty-icon">👥</div><div class="empty-text">ยังไม่มีรายชื่อพนักงาน<br/>เพิ่มได้ในหน้าตั้งค่า</div></div>';
+    return;
+  }
+  list.innerHTML = employees.map(function(e){
+    var st=getEmpStatus(e.id);
+    var badge='', bcls='';
+    if(st==='done'){  badge='เสร็จสิ้น';    bcls='b-done'; }
+    else if(st==='in'){badge='รอเช็คเอาต์'; bcls='b-in'; }
+    else {             badge='รอเช็คอิน';   bcls='b-pend'; }
+    var lockIcon = st==='done'
+      ? '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="color:var(--red);flex-shrink:0"><rect x="3" y="7" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M5 7V5a3 3 0 016 0v2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>'
+      : '';
+    return '<div class="emp-row" onclick="clickEmp(\''+e.id+'\')">'
+      +'<div class="avatar '+e.cls+'">'+e.av+'</div>'
+      +'<div class="emp-info"><div class="emp-name">'+e.name+'</div><div class="emp-role">'+e.role+'</div></div>'
+      +'<div class="emp-status">'+lockIcon+'<span class="badge '+bcls+'">'+badge+'</span></div>'
+      +'</div>';
+  }).join('');
+}
+
+// ════════════════════════════════════════════
+//  CLICK EMPLOYEE
+// ════════════════════════════════════════════
+function clickEmp(empId){
+  var st=getEmpStatus(empId);
+  if(st==='done'){
+    showLockedScreen(empId); return;
+  }
+  var emp=employees.find(function(e){return e.id===empId;});
+  currentEmpId=empId;
+  document.getElementById('f-name').value=emp.name;
+  document.getElementById('f-dept').value=emp.role;
+  locationData=null; photo1Data=null; photo2Data=null;
+  document.getElementById('loc-box').className='loc-box';
+  document.getElementById('loc-txt').textContent='แตะเพื่อรับตำแหน่ง GPS';
+  document.getElementById('pb1').className='photo-box';
+  document.getElementById('pb2').className='photo-box';
+  document.getElementById('pv1').src='';
+  document.getElementById('pv2').src='';
+  document.getElementById('pcap1').style.display='none';
+  document.getElementById('pcap2').style.display='none';
+  document.getElementById('f-note').value='';
+  document.getElementById('f-time').value=nowStr();
+  var defaultType = st==='in'?'out':'in';
+  currentType=defaultType;
+  renderLockBanner(empId);
+  applyTypeUI(defaultType, st);
+  document.getElementById('time-lbl').textContent=defaultType==='in'?'เวลาเข้างาน':'เวลาออกงาน';
+  document.getElementById('sub-lbl').textContent=defaultType==='in'?'บันทึกเวลาเข้างาน':'บันทึกเวลาออกงาน';
+  showScreen('s-form');
+}
+
+function applyTypeUI(type, st){
+  var bIn=document.getElementById('btn-in');
+  var bOut=document.getElementById('btn-out');
+  bIn.disabled=false; bOut.disabled=false;
+  bIn.className='type-btn'; bOut.className='type-btn';
+  if(st==='in'){
+    bIn.disabled=true;
+    bIn.style.opacity='.35';
+    bOut.className='type-btn active-out';
+  } else {
+    bIn.style.opacity='';
+    bOut.style.opacity='';
+    if(type==='in') bIn.className='type-btn active-in';
+    else            bOut.className='type-btn active-out';
+  }
+}
+
+function setType(type){
+  var st=currentEmpId?getEmpStatus(currentEmpId):'pending';
+  if(st==='in' && type==='in'){ toast('เช็คอินไปแล้ว — เลือกได้เฉพาะเช็คเอาต์'); return; }
+  currentType=type;
+  applyTypeUI(type, st);
+  document.getElementById('time-lbl').textContent=type==='in'?'เวลาเข้างาน':'เวลาออกงาน';
+  document.getElementById('sub-lbl').textContent=type==='in'?'บันทึกเวลาเข้างาน':'บันทึกเวลาออกงาน';
+}
+
+function renderLockBanner(empId){
+  var area=document.getElementById('lock-banner-area');
+  var st=getEmpStatus(empId);
+  if(st==='in'){
+    var inRec=getEmpRecord(empId,'in');
+    area.innerHTML='<div class="lock-banner lock-in"><span class="lock-icon">✅</span>'
+      +'<div>เช็คอินไปแล้ว '+inRec.time+' น. — เลือกได้เฉพาะ <strong>เช็คเอาต์</strong> เท่านั้น</div></div>';
+  } else { area.innerHTML=''; }
+}
+
+function showLockedScreen(empId){
+  var emp=employees.find(function(e){return e.id===empId;});
+  var inRec=getEmpRecord(empId,'in');
+  var outRec=getEmpRecord(empId,'out');
+  document.getElementById('s-icon').textContent='🔒';
+  document.getElementById('s-icon').className='s-icon red';
+  document.getElementById('s-title').textContent=emp.name+' — ครบแล้ววันนี้';
+  document.getElementById('s-sub').textContent='บันทึกเข้า-ออกครบแล้ว ไม่สามารถแก้ไขได้\nต้องใช้สิทธิ์ Admin เท่านั้น';
+  document.getElementById('s-badge').style.display='none';
+  document.getElementById('sum-card').innerHTML=
+    (inRec?'<div class="detail-row"><span class="dk">เช็คอิน</span><span class="dv">'+inRec.time+' น.</span></div>':'')
+    +(outRec?'<div class="detail-row"><span class="dk">เช็คเอาต์</span><span class="dv">'+outRec.time+' น.</span></div>':'')
+    +'<div class="detail-row"><span class="dk">วันที่</span><span class="dv">'+todayStr()+'</span></div>'
+    +'<div class="alert alert-err" style="margin-top:12px;font-size:13px">🔒 ข้อมูลถูกล็อค — ติดต่อ Admin เพื่อแก้ไข</div>';
+  showScreen('s-success');
+}
+
+// ════════════════════════════════════════════
+//  LOCATION
+// ════════════════════════════════════════════
+function getLocation(){
+  var box=document.getElementById('loc-box');
+  var txt=document.getElementById('loc-txt');
+  txt.textContent='กำลังรับตำแหน่ง...';
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(
+      function(p){
+        var lat=p.coords.latitude.toFixed(6), lng=p.coords.longitude.toFixed(6);
+        locationData={lat:lat, lng:lng, acc:Math.round(p.coords.accuracy)};
+        txt.textContent=lat+', '+lng+' (±'+locationData.acc+'m)';
+        box.classList.add('got');
+        toast('📍 รับตำแหน่งสำเร็จ');
+      },
+      function(){
+        txt.textContent='ไม่สามารถรับตำแหน่งได้';
+        box.classList.remove('got');
+        toast('⚠️ ไม่สามารถเข้าถึง GPS ได้');
+      },
+      {enableHighAccuracy:true, timeout:10000}
+    );
+  } else {
+    txt.textContent='อุปกรณ์ไม่รองรับ GPS';
+  }
+}
+
+// ════════════════════════════════════════════
+//  PHOTO — ใช้กล้องจริงบนมือถือ
+// ════════════════════════════════════════════
+function capturePhoto(n){
+  document.getElementById('cam'+n).click();
+}
+function loadPhoto(event, n){
+  var file=event.target.files[0];
+  if(!file) return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var data=e.target.result;
+    if(n===1) photo1Data=data;
+    else      photo2Data=data;
+    document.getElementById('pv'+n).src=data;
+    document.getElementById('pb'+n).classList.add('captured');
+    document.getElementById('pcap'+n).style.display='block';
+    toast('📷 บันทึกรูปถ่ายแล้ว');
+  };
+  reader.readAsDataURL(file);
+}
+
+// ════════════════════════════════════════════
+//  SUBMIT RECORD
+// ════════════════════════════════════════════
+function submitRecord(){
+  var name=document.getElementById('f-name').value.trim();
+  var time=document.getElementById('f-time').value;
+  var dept=document.getElementById('f-dept').value.trim();
+  var note=document.getElementById('f-note').value.trim();
+  if(!name){ toast('⚠️ กรุณากรอกชื่อพนักงาน'); return; }
+  if(!time){ toast('⚠️ กรุณาระบุเวลา'); return; }
+  if(settings.requireGPS && !locationData){ toast('⚠️ กรุณารับตำแหน่ง GPS ก่อน'); return; }
+  if(settings.requirePhoto && (!photo1Data)){ toast('⚠️ กรุณาถ่ายรูปก่อน'); return; }
+
+  if(currentEmpId){
+    var existing=getEmpRecord(currentEmpId, currentType);
+    if(existing){ toast('⛔ บันทึก'+( currentType==='in'?'เข้างาน':'ออกงาน')+' ไปแล้ว ไม่สามารถซ้ำได้'); return; }
+  }
+
+  var btn=document.getElementById('sub-btn');
+  btn.disabled=true;
+  btn.innerHTML='<span class="spinner"></span>&nbsp;กำลังบันทึก...';
+
+  var now=new Date();
+  var rec={
+    id:now.getTime()+'',
+    empId:currentEmpId||'',
+    name:name, dept:dept,
+    type:currentType,
+    time:time,
+    date:todayStr(),
+    location:locationData?(locationData.lat+','+locationData.lng):'',
+    note:note,
+    createdAt:now.toISOString(),
+    updatedAt:now.toISOString(),
+    status:'active'
+  };
+
+  records.unshift(rec);
+  saveRecs();
+
+  var url=settings.url||'';
+  if(url){
+    // ── ส่งไป Google Sheets ─────────────────
+    var usePhoto = photo1Data || photo2Data;
+    if(usePhoto){
+      // POST พร้อมรูป
+      fetch(url, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          action:'appendWithPhoto',
+          empId:rec.empId, name:rec.name, dept:rec.dept,
+          type:rec.type==='in'?'เข้างาน':'ออกงาน',
+          time:rec.time, date:rec.date,
+          location:rec.location, note:rec.note,
+          photo1:photo1Data||'', photo2:photo2Data||'',
+          createdAt:rec.createdAt, updatedAt:rec.updatedAt
+        })
+      })
+      .then(function(r){return r.json();})
+      .then(function(d){ showSuccess(rec, d); })
+      .catch(function(){ showSuccess(rec, null); });
+    } else {
+      // GET ไม่มีรูป
+      var p=new URLSearchParams({
+        action:'append',
+        empId:rec.empId, name:rec.name, dept:rec.dept,
+        type:rec.type==='in'?'เข้างาน':'ออกงาน',
+        time:rec.time, date:rec.date,
+        location:rec.location, note:rec.note,
+        createdAt:rec.createdAt, updatedAt:rec.updatedAt
+      });
+      fetch(url+'?'+p.toString())
+        .then(function(r){return r.json();})
+        .then(function(d){ showSuccess(rec, d); })
+        .catch(function(){ showSuccess(rec, null); });
+    }
+  } else {
+    setTimeout(function(){ showSuccess(rec, null); }, 600);
+  }
+}
+
+// ════════════════════════════════════════════
+//  SHOW SUCCESS
+// ════════════════════════════════════════════
+function showSuccess(rec, apiResp){
+  var btn=document.getElementById('sub-btn');
+  btn.disabled=false;
+  btn.innerHTML='<span id="sub-lbl">บันทึกเวลาเข้างาน</span>';
+
+  var typeLabel=rec.type==='in'?'เข้างาน':'ออกงาน';
+  var sentToSheet = settings.url && apiResp && apiResp.status==='ok';
+  var duplicate   = apiResp && apiResp.status==='duplicate';
+
+  if(duplicate){
+    toast('⛔ '+apiResp.message); return;
+  }
+
+  document.getElementById('s-icon').textContent='✅';
+  document.getElementById('s-icon').className='s-icon green';
+  document.getElementById('s-title').textContent='บันทึก'+typeLabel+'สำเร็จ!';
+  document.getElementById('s-sub').textContent = sentToSheet
+    ? 'ข้อมูลถูกส่งไปยัง Google Sheets เรียบร้อยแล้ว'
+    : (settings.url ? 'บันทึกในเครื่องแล้ว (ตรวจสอบ URL อีกครั้ง)' : 'บันทึกในเครื่องแล้ว (ยังไม่ได้ตั้งค่า URL)');
+  var sb=document.getElementById('s-badge');
+  sb.style.display = sentToSheet ? 'inline-flex' : 'none';
+
+  document.getElementById('sum-card').innerHTML=
+    '<div class="detail-row"><span class="dk">ชื่อ</span><span class="dv">'+rec.name+'</span></div>'
+    +'<div class="detail-row"><span class="dk">ประเภท</span><span class="dv">'+typeLabel+'</span></div>'
+    +'<div class="detail-row"><span class="dk">เวลา</span><span class="dv">'+rec.time+' น.</span></div>'
+    +'<div class="detail-row"><span class="dk">วันที่</span><span class="dv">'+rec.date+'</span></div>'
+    +(rec.location?'<div class="detail-row"><span class="dk">GPS</span><span class="dv" style="font-size:11px">'+rec.location+'</span></div>':'')
+    +(rec.note?'<div class="detail-row"><span class="dk">หมายเหตุ</span><span class="dv">'+rec.note+'</span></div>':'')
+    +'<div class="alert alert-info" style="margin-top:12px;font-size:13px">🔒 ข้อมูลถูกล็อค — ไม่สามารถแก้ไขได้</div>';
+
+  showScreen('s-success');
+  renderHome();
+}
+
+// ════════════════════════════════════════════
+//  HISTORY
+// ════════════════════════════════════════════
+function renderHistory(){
+  var active=records.filter(function(r){return r.status!=='deleted';});
+  document.getElementById('hist-count').textContent=active.length+' รายการ';
+  var list=document.getElementById('hist-list');
+  if(active.length===0){
+    list.innerHTML='<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">ยังไม่มีประวัติ</div></div>';
+    return;
+  }
+  list.innerHTML=active.slice(0,30).map(function(r){
+    var tl=r.type==='in'?'เข้างาน':'ออกงาน';
+    var bc=r.type==='in'?'b-in':'b-out';
+    return '<div class="hist-card">'
+      +'<div class="hist-info"><div class="hname">'+r.name+'</div>'
+      +'<div class="hdate">'+r.date+' · '+r.time+' น.'+(r.location?' · 📍':'')+'</div>'
+      +(r.note?'<div class="hdate" style="color:var(--text-muted)">'+r.note+'</div>':'')
+      +'</div>'
+      +'<div class="hist-right">'
+      +'<span class="lock-icon-sm">🔒</span>'
+      +'<span class="badge '+bc+'">'+tl+'</span>'
+      +'</div></div>';
+  }).join('');
+}
+
+// ════════════════════════════════════════════
+//  SETTINGS
+// ════════════════════════════════════════════
+function renderSettings(){
+  document.getElementById('set-url').value=settings.url||'';
+  document.getElementById('url-st').textContent=settings.url?'✅ ตั้งค่า URL แล้ว':'';
+  document.getElementById('tgl-photo').className='toggle'+(settings.requirePhoto?' on':'');
+  document.getElementById('tgl-gps').className='toggle'+(settings.requireGPS?' on':'');
+  document.getElementById('rec-count').textContent=records.filter(function(r){return r.status!=='deleted';}).length+' รายการ';
+  // employee list in settings
+  var el=document.getElementById('emp-setting-list');
+  el.innerHTML=employees.map(function(e){
+    return '<div class="setting-row">'
+      +'<div><div class="setting-lbl">'+e.name+'</div><div class="setting-sub">'+e.id+' · '+e.role+'</div></div>'
+      +'<button class="btn-del" onclick="removeEmp(\''+e.id+'\')">ลบ</button>'
+      +'</div>';
+  }).join('')||'<div style="font-size:13px;color:var(--text-muted);padding:8px 0">ยังไม่มีรายชื่อ</div>';
+}
+function saveUrl(){
+  settings.url=document.getElementById('set-url').value.trim();
+  saveCfg();
+  document.getElementById('url-st').textContent=settings.url?'✅ บันทึก URL แล้ว':'ลบ URL แล้ว';
+  toast('บันทึก URL แล้ว');
+}
+function testConn(){
+  var url=settings.url;
+  if(!url){ toast('⚠️ กรุณากรอก URL ก่อน'); return; }
+  toast('🔌 กำลังทดสอบ...');
+  fetch(url+'?action=test')
+    .then(function(r){return r.json();})
+    .then(function(d){ toast(d.status==='ok'?'✅ เชื่อมต่อสำเร็จ!':'⚠️ '+d.message, 3000); })
+    .catch(function(e){ toast('❌ เชื่อมต่อไม่ได้: '+e.message, 3500); });
+}
+function toggleSetting(key){
+  settings[key]=!settings[key];
+  saveCfg();
+  renderSettings();
+}
+function addEmpPrompt(){
+  var name=prompt('ชื่อ-นามสกุลพนักงาน:');
+  if(!name||!name.trim()) return;
+  var role=prompt('ตำแหน่ง / แผนก:') || '';
+  var id='E'+String(Date.now()).slice(-4);
+  var initials=name.trim().split(' ').map(function(w){return w[0];}).slice(0,2).join('');
+  var clss=['av-g','av-b','av-a','av-c'];
+  var cls=clss[employees.length%clss.length];
+  employees.push({id:id, name:name.trim(), role:role.trim(), av:initials, cls:cls});
+  saveEmps();
+  renderSettings();
+  toast('เพิ่ม '+name+' แล้ว');
+}
+function removeEmp(id){
+  if(!confirm('ลบพนักงานนี้?')) return;
+  employees=employees.filter(function(e){return e.id!==id;});
+  saveEmps();
+  renderSettings();
+  toast('ลบแล้ว');
+}
+
+// ════════════════════════════════════════════
+//  ADMIN
+// ════════════════════════════════════════════
+function gotoAdminLogin(){ showScreen('s-admin-login'); document.getElementById('admin-pw').value=''; document.getElementById('admin-err').style.display='none'; }
+function checkAdmin(){
+  var pw=document.getElementById('admin-pw').value;
+  if(pw===adminPw){ isAdmin=true; renderAdminPanel(); showScreen('s-admin'); renderHome(); }
+  else { document.getElementById('admin-err').style.display='block'; }
+}
+function logoutAdmin(){ isAdmin=false; toast('ออกจากระบบ Admin แล้ว'); goHome(); }
+function renderAdminPanel(){
+  var today=todayStr();
+  var todayRecs=records.filter(function(r){return r.date===today&&r.status!=='deleted';});
+  var active=records.filter(function(r){return r.status!=='deleted';});
+  document.getElementById('adm-today').textContent=todayRecs.length;
+  document.getElementById('adm-total').textContent=active.length;
+  var container=document.getElementById('adm-records');
+  if(active.length===0){ container.innerHTML='<div class="empty"><div class="empty-text">ยังไม่มีข้อมูล</div></div>'; return; }
+  container.innerHTML=active.slice(0,15).map(function(r){
+    var tl=r.type==='in'?'เข้างาน':'ออกงาน';
+    var bc=r.type==='in'?'b-in':'b-out';
+    return '<div class="admin-rec">'
+      +'<div class="admin-rec-info"><div class="admin-rec-name">'+r.name+'</div>'
+      +'<div class="admin-rec-sub">'+r.date+' · '+r.time+' น.</div></div>'
+      +'<span class="badge '+bc+'" style="margin-right:8px">'+tl+'</span>'
+      +'<button class="btn-del" onclick="adminDelete(\''+r.id+'\')">ลบ</button>'
+      +'</div>';
+  }).join('');
+}
+function adminDelete(id){
+  if(!confirm('ลบรายการนี้?')) return;
+  var idx=records.findIndex(function(r){return r.id===id;});
+  if(idx>-1){ records[idx].status='deleted'; saveRecs(); }
+  renderAdminPanel(); renderHome();
+  toast('ลบแล้ว');
+
+  // ── แจ้ง Google Sheets ───────────────────
+  var url=settings.url;
+  if(url){
+    fetch(url+'?'+new URLSearchParams({action:'adminDelete',recordId:id,adminPw:adminPw}));
+  }
+}
+function adminAddRecord(){
+  currentEmpId=null; isAdmin=true;
+  document.getElementById('f-name').value='';
+  document.getElementById('f-dept').value='';
+  locationData=null; photo1Data=null; photo2Data=null;
+  document.getElementById('loc-box').className='loc-box';
+  document.getElementById('loc-txt').textContent='แตะเพื่อรับตำแหน่ง GPS';
+  document.getElementById('pb1').className='photo-box';
+  document.getElementById('pb2').className='photo-box';
+  document.getElementById('pv1').src='';
+  document.getElementById('pv2').src='';
+  document.getElementById('pcap1').style.display='none';
+  document.getElementById('pcap2').style.display='none';
+  document.getElementById('f-note').value='';
+  document.getElementById('f-time').value=nowStr();
+  document.getElementById('lock-banner-area').innerHTML='<div class="lock-banner lock-admin"><span class="lock-icon">👤</span><div>Admin เพิ่มข้อมูล — ไม่มีข้อจำกัดเรื่องการซ้ำ</div></div>';
+  document.getElementById('btn-in').disabled=false;
+  document.getElementById('btn-in').style.opacity='1';
+  document.getElementById('btn-out').disabled=false;
+  document.getElementById('btn-out').style.opacity='1';
+  currentType='in';
+  applyTypeUI('in','pending');
+  document.getElementById('time-lbl').textContent='เวลาเข้างาน';
+  document.getElementById('sub-lbl').textContent='บันทึกเวลาเข้างาน';
+  showScreen('s-form');
+}
+function confirmReset(){
+  if(!confirm('ลบข้อมูลทั้งหมด? ไม่สามารถกู้คืนได้')) return;
+  records=[]; saveRecs();
+  renderAdminPanel(); renderHome();
+  toast('ล้างข้อมูลแล้ว');
+}
+function changePw(){
+  var np=document.getElementById('new-pw').value.trim();
+  if(np.length<4){ toast('⚠️ รหัสผ่านต้องมีอย่างน้อย 4 ตัว'); return; }
+  adminPw=np;
+  try{localStorage.setItem('att_pw',adminPw);}catch(e){}
+  document.getElementById('new-pw').value='';
+  toast('✅ เปลี่ยนรหัสผ่านแล้ว');
+}
+
+// ── Init ───────────────────────────────────
+renderHome();
+</script>
+</body>
+</html>
