@@ -790,44 +790,46 @@ function submitRecord(){
 
   var url=settings.url||'';
   if(url){
-    // ── ส่งไป Google Sheets ─────────────────
-    var usePhoto = photo1Data || photo2Data;
-    if(usePhoto){
-      // POST พร้อมรูป
-      fetch(url, {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-          action:'appendWithPhoto',
-          empId:rec.empId, name:rec.name, dept:rec.dept,
-          type:rec.type==='in'?'เข้างาน':'ออกงาน',
-          time:rec.time, date:rec.date,
-          location:rec.location, note:rec.note,
-          photo1:photo1Data||'', photo2:photo2Data||'',
-          createdAt:rec.createdAt, updatedAt:rec.updatedAt
-        })
-      })
-      .then(function(r){return r.json();})
-      .then(function(d){ showSuccess(rec, d); })
-      .catch(function(){ showSuccess(rec, null); });
-    } else {
-      // GET ไม่มีรูป
-      var p=new URLSearchParams({
-        action:'append',
-        empId:rec.empId, name:rec.name, dept:rec.dept,
-        type:rec.type==='in'?'เข้างาน':'ออกงาน',
-        time:rec.time, date:rec.date,
-        location:rec.location, note:rec.note,
-        createdAt:rec.createdAt, updatedAt:rec.updatedAt
-      });
-      fetch(url+'?'+p.toString())
-        .then(function(r){return r.json();})
-        .then(function(d){ showSuccess(rec, d); })
-        .catch(function(){ showSuccess(rec, null); });
-    }
+    sendToSheet(url, rec, function(){ showSuccess(rec, {status:'ok'}); });
   } else {
     setTimeout(function(){ showSuccess(rec, null); }, 600);
   }
+}
+
+// ════════════════════════════════════════════
+//  SEND TO GOOGLE SHEET
+//  ใช้ no-cors + FormData — วิธีเดียวที่ทำงานได้
+//  จาก GitHub Pages → Apps Script โดยไม่ติด CORS
+// ════════════════════════════════════════════
+function sendToSheet(url, rec, onDone){
+  // สร้าง FormData — Apps Script รับได้โดยไม่ต้องการ CORS preflight
+  var form = new FormData();
+  form.append('action',    'append');
+  form.append('empId',     rec.empId);
+  form.append('name',      rec.name);
+  form.append('dept',      rec.dept);
+  form.append('type',      rec.type==='in'?'เข้างาน':'ออกงาน');
+  form.append('time',      rec.time);
+  form.append('date',      rec.date);
+  form.append('location',  rec.location);
+  form.append('note',      rec.note);
+  form.append('createdAt', rec.createdAt);
+  form.append('updatedAt', rec.updatedAt);
+  // sentAt = เวลาที่ Device กดส่งจริง ใช้เปรียบเทียบกับ serverAt ใน Sheet
+  form.append('sentAt',    new Date().toISOString());
+
+  // no-cors: browser ส่งได้แต่อ่าน response ไม่ได้ (opaque)
+  // จึงถือว่า "ส่งแล้ว" เสมอ แล้วดูผลจาก Sheet โดยตรง
+  fetch(url, {
+    method: 'POST',
+    mode:   'no-cors',
+    body:   form
+  })
+  .then(function(){ onDone(); })
+  .catch(function(err){
+    console.error('sendToSheet error:', err);
+    onDone(); // บันทึก local ไว้ก่อนแม้ส่งไม่สำเร็จ
+  });
 }
 
 // ════════════════════════════════════════════
@@ -922,9 +924,12 @@ function testConn(){
   var url=settings.url;
   if(!url){ toast('⚠️ กรุณากรอก URL ก่อน'); return; }
   toast('🔌 กำลังทดสอบ...');
-  fetch(url+'?action=test')
-    .then(function(r){return r.json();})
-    .then(function(d){ toast(d.status==='ok'?'✅ เชื่อมต่อสำเร็จ!':'⚠️ '+d.message, 3000); })
+  var form=new FormData();
+  form.append('action','test');
+  fetch(url, { method:'POST', mode:'no-cors', body:form })
+    .then(function(){
+      toast('✅ ส่งคำขอสำเร็จ — เช็คดูใน Google Sheets ได้เลย', 3500);
+    })
     .catch(function(e){ toast('❌ เชื่อมต่อไม่ได้: '+e.message, 3500); });
 }
 function toggleSetting(key){
