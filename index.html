@@ -47,6 +47,7 @@ body{display:flex;flex-direction:column;max-width:480px;margin:0 auto;min-height
 .screen{display:none;flex-direction:column;flex:1;animation:fadeIn .2s ease}
 .screen.active{display:flex}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse-red{0%,100%{box-shadow:none}50%{box-shadow:0 0 0 4px rgba(158,58,26,0.25)}}
 .content{padding:16px;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:80px}
 
 /* ── Tab Bar ─────────────────────────────── */
@@ -205,10 +206,24 @@ textarea.form-input{resize:none;height:80px}
 .empty-icon{font-size:40px;margin-bottom:12px;opacity:.4}
 .empty-text{font-size:14px}
 
+/* ── Filter Chips ─────────────────────────────── */
+.filter-chip{padding:6px 12px;border:1.5px solid var(--border);border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;background:#fff;color:var(--text-muted);font-family:'Sarabun',sans-serif;transition:all .2s;white-space:nowrap}
+.filter-chip.active{background:var(--green);color:#fff;border-color:var(--green)}
+.filter-chip:hover:not(.active){background:var(--green-light);color:var(--green);border-color:var(--green)}
+/* ── Status Tags ─────────────────────────────── */
+.tag-late{background:#fce8e0;color:#9e3a1a;font-size:11px;font-weight:600;padding:2px 7px;border-radius:10px}
+.tag-early{background:#fef3d0;color:#8b5e08;font-size:11px;font-weight:600;padding:2px 7px;border-radius:10px}
+.tag-ot{background:#e0f0ff;color:#1855a0;font-size:11px;font-weight:600;padding:2px 7px;border-radius:10px}
+.tag-ok{background:#e8f5ee;color:#1a6b3c;font-size:11px;font-weight:600;padding:2px 7px;border-radius:10px}
 /* ── URL Config ─────────────────────────────── */
 .url-wrap{display:flex;gap:8px}
 .url-wrap input{flex:1;font-size:12px}
 .btn-save-url{padding:0 16px;background:var(--green);color:#fff;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;font-family:'Sarabun',sans-serif;white-space:nowrap}
+
+/* ── Admin Sub-tabs ─────────────────────────────── */
+.adm-tab{padding:8px 14px;border:1.5px solid var(--border);border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;background:#fff;color:var(--text-muted);font-family:'Sarabun',sans-serif;white-space:nowrap;transition:all .2s;flex-shrink:0}
+.adm-tab.active{background:var(--green);color:#fff;border-color:var(--green)}
+.adm-tab:hover:not(.active){background:var(--green-light);color:var(--green);border-color:var(--green)}
 </style>
 </head>
 <body>
@@ -236,6 +251,11 @@ textarea.form-input{resize:none;height:80px}
 
     <div class="card">
       <div class="card-title">รายชื่อพนักงาน</div>
+      <!-- Search box -->
+      <div style="position:relative;margin-bottom:10px">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none"><circle cx="6.5" cy="6.5" r="4" stroke="currentColor" stroke-width="1.4"/><path d="M10 10l3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+        <input type="text" id="search-emp" class="form-input" placeholder="ค้นหาชื่อพนักงาน..." oninput="renderHome()" style="padding-left:32px;font-size:13px"/>
+      </div>
       <div id="emp-list">
         <div class="empty"><div class="empty-icon">👥</div><div class="empty-text">ยังไม่มีรายชื่อพนักงาน<br/>กรุณาตั้งค่าก่อน</div></div>
       </div>
@@ -247,9 +267,8 @@ textarea.form-input{resize:none;height:80px}
     </button>
   </div>
   <div class="tab-bar">
-    <button class="tab-item active" onclick="showTab('home')"><span class="tab-icon">🏠</span>หน้าหลัก</button>
-    <button class="tab-item" onclick="showTab('history')"><span class="tab-icon">📋</span>ประวัติ</button>
-    <button class="tab-item" onclick="showTab('settings')"><span class="tab-icon">⚙️</span>ตั้งค่า</button>
+    <button class="tab-item active" id="tab-home" onclick="showTab('home')"><span class="tab-icon">🏠</span>หน้าหลัก</button>
+    <button class="tab-item" id="tab-history" onclick="showTab('history')"><span class="tab-icon">📋</span>ประวัติ</button>
   </div>
 </div>
 
@@ -297,18 +316,18 @@ textarea.form-input{resize:none;height:80px}
     </div>
 
     <div class="card">
-      <div class="card-title">รูปถ่าย</div>
+      <div class="card-title">รูปถ่าย <span style="color:var(--red);font-size:10px;font-weight:600">* บังคับถ่ายครบ 2 รูป</span></div>
       <div class="photo-row">
-        <div class="photo-box" id="pb1" onclick="capturePhoto(1)">
+        <div class="photo-box" id="pb1" onclick="capturePhoto(1)" style="border-color:var(--red);border-style:dashed">
           <div class="ph-icon">📷</div>
           <img class="prev-img" id="pv1" src="" alt=""/>
-          <span class="ph-label">ถ่ายรูป</span>
+          <span class="ph-label" style="font-size:11px;color:var(--red);font-weight:600">รูปที่ 1 *</span>
           <span class="photo-cap-label" id="pcap1" style="display:none">ถ่ายแล้ว ✓</span>
         </div>
-        <div class="photo-box" id="pb2" onclick="capturePhoto(2)">
+        <div class="photo-box" id="pb2" onclick="capturePhoto(2)" style="border-color:var(--red);border-style:dashed">
           <div class="ph-icon">🤳</div>
           <img class="prev-img" id="pv2" src="" alt=""/>
-          <span class="ph-label">ยืนยันตัวตน</span>
+          <span class="ph-label" style="font-size:11px;color:var(--red);font-weight:600">รูปที่ 2 *</span>
           <span class="photo-cap-label" id="pcap2" style="display:none">ถ่ายแล้ว ✓</span>
         </div>
       </div>
@@ -353,73 +372,68 @@ textarea.form-input{resize:none;height:80px}
 ═══════════════════════════════════════════ -->
 <div class="screen" id="s-history">
   <div class="content">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
       <div style="font-size:18px;font-weight:600">ประวัติการบันทึก</div>
       <div style="font-size:12px;color:var(--text-muted)" id="hist-count">0 รายการ</div>
     </div>
+
+    <!-- ── Search ── -->
+    <div style="position:relative;margin-bottom:10px">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none"><circle cx="6.5" cy="6.5" r="4" stroke="currentColor" stroke-width="1.4"/><path d="M10 10l3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+      <input type="text" id="search-hist" class="form-input" placeholder="ค้นหาชื่อพนักงาน..." oninput="applyHistFilter()" style="padding-left:32px;font-size:13px"/>
+    </div>
+
+    <!-- ── Filter Panel ── -->
+    <div class="card" style="margin-bottom:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div style="font-size:13px;font-weight:600;color:var(--text)">🔍 กรองข้อมูล</div>
+        <button onclick="clearHistFilter()" style="font-size:11px;color:var(--text-muted);background:none;border:none;cursor:pointer;font-family:'Sarabun',sans-serif;text-decoration:underline">ล้างทั้งหมด</button>
+      </div>
+
+      <!-- Date range -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+        <div>
+          <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:4px">ตั้งแต่วันที่</div>
+          <input type="date" id="f-date-from" class="form-input" style="font-size:12px;padding:8px 10px" onchange="applyHistFilter()"/>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:4px">ถึงวันที่</div>
+          <input type="date" id="f-date-to" class="form-input" style="font-size:12px;padding:8px 10px" onchange="applyHistFilter()"/>
+        </div>
+      </div>
+
+      <!-- Type filter -->
+      <div style="margin-bottom:10px">
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:6px">ประเภท</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="filter-chip active" id="fc-all"  onclick="setTypeFilter('all')">ทั้งหมด</button>
+          <button class="filter-chip" id="fc-in"   onclick="setTypeFilter('in')">📥 เข้างาน</button>
+          <button class="filter-chip" id="fc-out"  onclick="setTypeFilter('out')">📤 ออกงาน</button>
+        </div>
+      </div>
+
+      <!-- Status filter -->
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:6px">สถานะเวลา</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="filter-chip active" id="fs-all"   onclick="setStatusFilter('all')">ทั้งหมด</button>
+          <button class="filter-chip" id="fs-late"  onclick="setStatusFilter('late')">⏰ เข้าสาย</button>
+          <button class="filter-chip" id="fs-early" onclick="setStatusFilter('early')">🏃 ออกก่อนเวลา</button>
+          <button class="filter-chip" id="fs-ot"    onclick="setStatusFilter('ot')">⭐ OT</button>
+          <button class="filter-chip" id="fs-ok"    onclick="setStatusFilter('ok')">✅ ปกติ</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Summary bar ── -->
+    <div id="hist-summary" style="display:none" class="card" style="margin-bottom:10px"></div>
+
+    <!-- ── List ── -->
     <div id="hist-list"></div>
   </div>
   <div class="tab-bar">
-    <button class="tab-item" onclick="showTab('home')"><span class="tab-icon">🏠</span>หน้าหลัก</button>
-    <button class="tab-item active" onclick="showTab('history')"><span class="tab-icon">📋</span>ประวัติ</button>
-    <button class="tab-item" onclick="showTab('settings')"><span class="tab-icon">⚙️</span>ตั้งค่า</button>
-  </div>
-</div>
-
-<!-- ═══════════════════════════════════════════
-     SCREEN: SETTINGS
-═══════════════════════════════════════════ -->
-<div class="screen" id="s-settings">
-  <div class="content">
-    <div style="font-size:18px;font-weight:600;margin-bottom:16px">ตั้งค่า</div>
-
-    <div class="card">
-      <div class="card-title">Google Sheets</div>
-      <div class="alert alert-warn" style="font-size:13px">
-        วาง Web App URL จาก Google Apps Script เพื่อเชื่อมต่อและส่งข้อมูลจริง
-      </div>
-      <div class="form-group">
-        <label class="form-label">Web App URL</label>
-        <div class="url-wrap">
-          <input type="url" class="form-input" id="set-url" placeholder="https://script.google.com/macros/s/.../exec"/>
-          <button class="btn-save-url" onclick="saveUrl()">บันทึก</button>
-        </div>
-        <div id="url-st" style="font-size:12px;color:var(--text-muted);margin-top:6px"></div>
-      </div>
-      <button onclick="testConn()" style="padding:8px 16px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:none;font-size:13px;cursor:pointer;font-family:'Sarabun',sans-serif;color:var(--text)">
-        🔌 ทดสอบการเชื่อมต่อ
-      </button>
-    </div>
-
-    <div class="card">
-      <div class="card-title">รายชื่อพนักงาน</div>
-      <div id="emp-setting-list"></div>
-      <button class="btn-secondary" onclick="addEmpPrompt()" style="margin-top:10px;font-size:13px">+ เพิ่มพนักงาน</button>
-    </div>
-
-    <div class="card">
-      <div class="card-title">ตัวเลือก</div>
-      <div class="setting-row">
-        <div><div class="setting-lbl">บังคับถ่ายรูป</div><div class="setting-sub">ต้องถ่ายรูปก่อนบันทึก</div></div>
-        <div class="toggle" id="tgl-photo" onclick="toggleSetting('requirePhoto')"></div>
-      </div>
-      <div class="setting-row">
-        <div><div class="setting-lbl">บังคับ GPS</div><div class="setting-sub">ต้องรับตำแหน่งก่อนบันทึก</div></div>
-        <div class="toggle" id="tgl-gps" onclick="toggleSetting('requireGPS')"></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">ข้อมูล</div>
-      <div class="detail-row"><span class="dk">รายการทั้งหมด</span><span class="dv" id="rec-count">0 รายการ</span></div>
-      <div class="detail-row"><span class="dk">เวอร์ชัน</span><span class="dv">2.0.0</span></div>
-    </div>
-    <div style="height:10px"></div>
-  </div>
-  <div class="tab-bar">
-    <button class="tab-item" onclick="showTab('home')"><span class="tab-icon">🏠</span>หน้าหลัก</button>
-    <button class="tab-item" onclick="showTab('history')"><span class="tab-icon">📋</span>ประวัติ</button>
-    <button class="tab-item active" onclick="showTab('settings')"><span class="tab-icon">⚙️</span>ตั้งค่า</button>
+    <button class="tab-item" id="tab-home3" onclick="showTab('home')"><span class="tab-icon">🏠</span>หน้าหลัก</button>
+    <button class="tab-item active" id="tab-history3" onclick="showTab('history')"><span class="tab-icon">📋</span>ประวัติ</button>
   </div>
 </div>
 
@@ -450,34 +464,116 @@ textarea.form-input{resize:none;height:80px}
 ═══════════════════════════════════════════ -->
 <div class="screen" id="s-admin">
   <div class="content">
+
+    <!-- ── Header ── -->
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
       <div>
         <div style="font-size:18px;font-weight:600">แผงควบคุม Admin</div>
-        <div style="font-size:12px;color:var(--text-muted)">สิทธิ์พิเศษ — จัดการข้อมูลทั้งหมด</div>
+        <div style="font-size:12px;color:var(--text-muted)">สิทธิ์พิเศษ — จัดการข้อมูลและตั้งค่าระบบ</div>
       </div>
-      <button onclick="logoutAdmin()" style="font-size:12px;padding:6px 12px;border:1.5px solid #f0b090;border-radius:var(--radius-sm);background:none;cursor:pointer;color:var(--red);font-family:'Sarabun',sans-serif">ออก</button>
+      <button onclick="logoutAdmin()" style="font-size:12px;padding:6px 12px;border:1.5px solid #f0b090;border-radius:var(--radius-sm);background:none;cursor:pointer;color:var(--red);font-family:'Sarabun',sans-serif">🚪 ออก</button>
     </div>
+
+    <!-- ── Stats ── -->
     <div class="stat-grid">
       <div class="stat-card"><div class="stat-num" id="adm-today">0</div><div class="stat-lbl">รายการวันนี้</div></div>
       <div class="stat-card"><div class="stat-num" id="adm-total">0</div><div class="stat-lbl">รายการทั้งหมด</div></div>
     </div>
-    <div class="card">
-      <div class="card-title">รายการล่าสุด (Admin จัดการได้)</div>
-      <div id="adm-records"></div>
+
+    <!-- ── Section tabs ── -->
+    <div style="display:flex;gap:8px;margin-bottom:14px;overflow-x:auto;padding-bottom:2px">
+      <button class="adm-tab active" id="atab-data" onclick="switchAdminTab('data')">📋 ข้อมูล</button>
+      <button class="adm-tab" id="atab-settings" onclick="switchAdminTab('settings')">⚙️ ตั้งค่า</button>
+      <button class="adm-tab" id="atab-employees" onclick="switchAdminTab('employees')">👥 พนักงาน</button>
+      <button class="adm-tab" id="atab-security" onclick="switchAdminTab('security')">🔐 ความปลอดภัย</button>
     </div>
-    <div class="card">
-      <div class="card-title">การดำเนินการ</div>
-      <button class="btn-primary" onclick="adminAddRecord()" style="margin-top:0">+ เพิ่มบันทึกใหม่ (Admin)</button>
-      <button class="btn-danger" onclick="confirmReset()">🗑 ล้างข้อมูลทั้งหมด</button>
-    </div>
-    <div class="card">
-      <div class="card-title">เปลี่ยนรหัสผ่าน Admin</div>
-      <div class="form-group">
-        <label class="form-label">รหัสผ่านใหม่</label>
-        <input type="password" class="form-input" id="new-pw" placeholder="อย่างน้อย 4 ตัวอักษร"/>
+
+    <!-- ── TAB: Data ── -->
+    <div id="adm-pane-data">
+      <div class="card">
+        <div class="card-title">รายการล่าสุด</div>
+        <div id="adm-records"></div>
       </div>
-      <button class="btn-secondary" onclick="changePw()" style="margin-top:0">บันทึกรหัสผ่านใหม่</button>
+      <div class="card">
+        <div class="card-title">การดำเนินการ</div>
+        <button class="btn-primary" onclick="adminAddRecord()" style="margin-top:0">+ เพิ่มบันทึกใหม่ (Admin)</button>
+        <button class="btn-danger" onclick="confirmReset()">🗑 ล้างข้อมูลทั้งหมด</button>
+      </div>
     </div>
+
+    <!-- ── TAB: Settings ── -->
+    <div id="adm-pane-settings" style="display:none">
+      <div class="card">
+        <div class="card-title">Google Sheets</div>
+        <div class="alert alert-warn" style="font-size:13px;margin-bottom:12px">
+          วาง Web App URL จาก Google Apps Script เพื่อเชื่อมต่อและส่งข้อมูลจริง
+        </div>
+        <div class="form-group">
+          <label class="form-label">Web App URL</label>
+          <div class="url-wrap">
+            <input type="url" class="form-input" id="set-url" placeholder="https://script.google.com/macros/s/.../exec" style="font-size:12px"/>
+            <button class="btn-save-url" onclick="saveUrl()">บันทึก</button>
+          </div>
+          <div id="url-st" style="font-size:12px;color:var(--text-muted);margin-top:6px"></div>
+        </div>
+        <button onclick="testConn()" style="padding:9px 16px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:none;font-size:13px;cursor:pointer;font-family:'Sarabun',sans-serif;color:var(--text);width:100%">
+          🔌 ทดสอบการเชื่อมต่อ
+        </button>
+      </div>
+      <div class="card">
+        <div class="card-title">ตัวเลือกระบบ</div>
+        <div class="setting-row">
+          <div><div class="setting-lbl">บังคับถ่ายรูป 2 รูป</div><div class="setting-sub" style="color:var(--green)">เปิดอยู่เสมอ — ไม่สามารถปิดได้</div></div>
+          <div class="toggle on" style="opacity:.5;cursor:not-allowed"></div>
+        </div>
+        <div class="setting-row">
+          <div><div class="setting-lbl">บังคับ GPS</div><div class="setting-sub">ต้องรับตำแหน่งก่อนบันทึก</div></div>
+          <div class="toggle" id="tgl-gps" onclick="toggleSetting('requireGPS')"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">ข้อมูลระบบ</div>
+        <div class="detail-row"><span class="dk">รายการทั้งหมด</span><span class="dv" id="rec-count">0 รายการ</span></div>
+        <div class="detail-row"><span class="dk">พนักงาน</span><span class="dv" id="emp-count">0 คน</span></div>
+        <div class="detail-row"><span class="dk">เวอร์ชัน</span><span class="dv">2.1.0</span></div>
+      </div>
+    </div>
+
+    <!-- ── TAB: Employees ── -->
+    <div id="adm-pane-employees" style="display:none">
+      <div class="card">
+        <div class="card-title">รายชื่อพนักงาน</div>
+        <div id="emp-setting-list"></div>
+        <button class="btn-primary" onclick="addEmpPrompt()" style="margin-top:12px">+ เพิ่มพนักงานใหม่</button>
+      </div>
+    </div>
+
+    <!-- ── TAB: Security ── -->
+    <div id="adm-pane-security" style="display:none">
+      <div class="card">
+        <div class="card-title">เปลี่ยนรหัสผ่าน Admin</div>
+        <div class="alert alert-warn" style="font-size:13px;margin-bottom:12px">
+          รหัสผ่านปัจจุบัน: ถูกเก็บในอุปกรณ์นี้เท่านั้น
+        </div>
+        <div class="form-group">
+          <label class="form-label">รหัสผ่านใหม่ (อย่างน้อย 6 ตัว)</label>
+          <input type="password" class="form-input" id="new-pw" placeholder="กรอกรหัสผ่านใหม่"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ยืนยันรหัสผ่านใหม่</label>
+          <input type="password" class="form-input" id="confirm-pw" placeholder="กรอกซ้ำอีกครั้ง"/>
+        </div>
+        <button class="btn-primary" onclick="changePw()" style="margin-top:4px">🔑 บันทึกรหัสผ่านใหม่</button>
+      </div>
+      <div class="card">
+        <div class="card-title">โซนอันตราย</div>
+        <div class="alert alert-err" style="font-size:13px;margin-bottom:12px">
+          การล้างข้อมูลจะลบรายการทั้งหมดในอุปกรณ์นี้ ไม่สามารถกู้คืนได้
+        </div>
+        <button class="btn-danger" onclick="confirmReset()">🗑 ล้างข้อมูลทั้งหมด</button>
+      </div>
+    </div>
+
     <div style="height:20px"></div>
   </div>
 </div>
@@ -559,9 +655,25 @@ function showScreen(id){
   document.getElementById(id).classList.add('active');
 }
 function showTab(t){
-  if(t==='home'){    renderHome();    showScreen('s-home');     }
-  else if(t==='history'){ renderHistory(); showScreen('s-history'); }
-  else if(t==='settings'){renderSettings();showScreen('s-settings');}
+  if(t==='home'){
+    // update tab active states
+    ['tab-home','tab-home3'].forEach(function(id){var el=document.getElementById(id);if(el)el.classList.add('active');});
+    ['tab-history','tab-history3'].forEach(function(id){var el=document.getElementById(id);if(el)el.classList.remove('active');});
+    renderHome(); showScreen('s-home');
+  } else if(t==='history'){
+    ['tab-home','tab-home3'].forEach(function(id){var el=document.getElementById(id);if(el)el.classList.remove('active');});
+    ['tab-history','tab-history3'].forEach(function(id){var el=document.getElementById(id);if(el)el.classList.add('active');});
+    renderHistory(); showScreen('s-history');
+  }
+}
+
+function switchAdminTab(tab){
+  ['data','settings','employees','security'].forEach(function(t){
+    document.getElementById('adm-pane-'+t).style.display = t===tab ? '' : 'none';
+    document.getElementById('atab-'+t).classList.toggle('active', t===tab);
+  });
+  if(tab==='settings') renderAdminSettings();
+  if(tab==='employees') renderEmpSettings();
 }
 function goBack(){
   if(isAdmin){ showScreen('s-admin'); }
@@ -596,18 +708,39 @@ function renderHome(){
     list.innerHTML='<div class="empty"><div class="empty-icon">👥</div><div class="empty-text">ยังไม่มีรายชื่อพนักงาน<br/>เพิ่มได้ในหน้าตั้งค่า</div></div>';
     return;
   }
-  list.innerHTML = employees.map(function(e){
+  var q=(document.getElementById('search-emp')?document.getElementById('search-emp').value||'':''). trim().toLowerCase();
+  var filtered=employees.filter(function(e){ return !q||e.name.toLowerCase().indexOf(q)!==-1||e.role.toLowerCase().indexOf(q)!==-1; });
+  if(filtered.length===0){
+    list.innerHTML='<div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">ไม่พบ "'+q+'"</div></div>';
+    return;
+  }
+  list.innerHTML = filtered.map(function(e){
     var st=getEmpStatus(e.id);
     var badge='', bcls='';
     if(st==='done'){  badge='เสร็จสิ้น';    bcls='b-done'; }
     else if(st==='in'){badge='รอเช็คเอาต์'; bcls='b-in'; }
     else {             badge='รอเช็คอิน';   bcls='b-pend'; }
+    var inRec=getEmpRecord(e.id,'in'), outRec=getEmpRecord(e.id,'out');
+    var statusLine='';
+    if(inRec){
+      var inSt=calcStatus(inRec);
+      statusLine+='<span class="tag-'+inSt.tag+'" style="font-size:10px">'+inSt.detail+(inSt.tag==='ok'?'เข้า '+inRec.time:'')+'</span> ';
+    }
+    if(outRec){
+      var outSt=calcStatus(outRec);
+      var day=calcDayOT(e.id,todayStr());
+      if(day&&day.otMin>0) statusLine+='<span class="tag-ot" style="font-size:10px">OT '+minToStr(day.otMin)+'</span>';
+      else statusLine+='<span class="tag-'+outSt.tag+'" style="font-size:10px">'+outSt.detail+(outSt.tag==='ok'?'ออก '+outRec.time:'')+'</span>';
+    }
     var lockIcon = st==='done'
       ? '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="color:var(--red);flex-shrink:0"><rect x="3" y="7" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M5 7V5a3 3 0 016 0v2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>'
       : '';
     return '<div class="emp-row" onclick="clickEmp(\''+e.id+'\')">'
       +'<div class="avatar '+e.cls+'">'+e.av+'</div>'
-      +'<div class="emp-info"><div class="emp-name">'+e.name+'</div><div class="emp-role">'+e.role+'</div></div>'
+      +'<div class="emp-info"><div class="emp-name">'+e.name+'</div>'
+      +'<div class="emp-role">'+e.role+'</div>'
+      +(statusLine?'<div style="margin-top:3px">'+statusLine+'</div>':'')
+      +'</div>'
       +'<div class="emp-status">'+lockIcon+'<span class="badge '+bcls+'">'+badge+'</span></div>'
       +'</div>';
   }).join('');
@@ -629,7 +762,13 @@ function clickEmp(empId){
   document.getElementById('loc-box').className='loc-box';
   document.getElementById('loc-txt').textContent='แตะเพื่อรับตำแหน่ง GPS';
   document.getElementById('pb1').className='photo-box';
+  document.getElementById('pb1').style.borderColor='var(--red)';
+  document.getElementById('pb1').style.borderStyle='dashed';
+  document.getElementById('pb1').style.animation='';
   document.getElementById('pb2').className='photo-box';
+  document.getElementById('pb2').style.borderColor='var(--red)';
+  document.getElementById('pb2').style.borderStyle='dashed';
+  document.getElementById('pb2').style.animation='';
   document.getElementById('pv1').src='';
   document.getElementById('pv2').src='';
   document.getElementById('pcap1').style.display='none';
@@ -741,9 +880,15 @@ function loadPhoto(event, n){
     if(n===1) photo1Data=data;
     else      photo2Data=data;
     document.getElementById('pv'+n).src=data;
-    document.getElementById('pb'+n).classList.add('captured');
+    var box=document.getElementById('pb'+n);
+    box.classList.add('captured');
+    box.style.borderColor='var(--green)';
+    box.style.borderStyle='solid';
+    box.style.animation='';
     document.getElementById('pcap'+n).style.display='block';
-    toast('📷 บันทึกรูปถ่ายแล้ว');
+    // แสดงสถานะครบ/ไม่ครบ
+    var both = photo1Data && photo2Data;
+    toast(both ? '✅ ถ่ายรูปครบ 2 รูปแล้ว — พร้อมบันทึก' : '📷 ถ่ายรูปที่ '+n+' แล้ว กรุณาถ่ายรูปที่ '+(n===1?2:1)+' ด้วย');
   };
   reader.readAsDataURL(file);
 }
@@ -759,7 +904,23 @@ function submitRecord(){
   if(!name){ toast('⚠️ กรุณากรอกชื่อพนักงาน'); return; }
   if(!time){ toast('⚠️ กรุณาระบุเวลา'); return; }
   if(settings.requireGPS && !locationData){ toast('⚠️ กรุณารับตำแหน่ง GPS ก่อน'); return; }
-  if(settings.requirePhoto && (!photo1Data)){ toast('⚠️ กรุณาถ่ายรูปก่อน'); return; }
+  // บังคับถ่ายครบ 2 รูปเสมอ — ไม่มีข้อยกเว้น (ยกเว้น Admin)
+  if(!photo1Data){
+    toast('⚠️ กรุณาถ่ายรูปที่ 1 ก่อนบันทึก');
+    // กระพริบกรอบรูปที่ 1
+    var pb1=document.getElementById('pb1');
+    pb1.style.borderColor='var(--red)'; pb1.style.borderStyle='solid';
+    pb1.style.animation='pulse-red 0.5s ease 3';
+    return;
+  }
+  if(!photo2Data){
+    toast('⚠️ กรุณาถ่ายรูปที่ 2 ก่อนบันทึก');
+    // กระพริบกรอบรูปที่ 2
+    var pb2=document.getElementById('pb2');
+    pb2.style.borderColor='var(--red)'; pb2.style.borderStyle='solid';
+    pb2.style.animation='pulse-red 0.5s ease 3';
+    return;
+  }
 
   if(currentEmpId){
     var existing=getEmpRecord(currentEmpId, currentType);
@@ -817,6 +978,9 @@ function sendToSheet(url, rec, onDone){
   form.append('updatedAt', rec.updatedAt);
   // sentAt = เวลาที่ Device กดส่งจริง ใช้เปรียบเทียบกับ serverAt ใน Sheet
   form.append('sentAt',    new Date().toISOString());
+  // แนบรูปภาพ Base64 (Apps Script จะบันทึกลง Drive)
+  if(photo1Data) form.append('photo1', photo1Data);
+  if(photo2Data) form.append('photo2', photo2Data);
 
   // no-cors: browser ส่งได้แต่อ่าน response ไม่ได้ (opaque)
   // จึงถือว่า "ส่งแล้ว" เสมอ แล้วดูผลจาก Sheet โดยตรง
@@ -871,49 +1035,220 @@ function showSuccess(rec, apiResp){
 }
 
 // ════════════════════════════════════════════
-//  HISTORY
+//  WORK TIME CONFIG
 // ════════════════════════════════════════════
+var WORK_START = '08:30';  // เวลาเข้างาน
+var WORK_END   = '17:30';  // เวลาเลิกงาน
+var BREAK_MIN  = 60;       // พักกลางวัน (นาที)
+
+function timeToMin(t){
+  var parts=t.split(':');
+  return parseInt(parts[0])*60+parseInt(parts[1]);
+}
+function minToStr(m){
+  if(m<=0) return '';
+  var h=Math.floor(m/60), mn=m%60;
+  if(h>0 && mn>0) return h+' ชม. '+mn+' นาที';
+  if(h>0)         return h+' ชม.';
+  return mn+' นาที';
+}
+
+// คำนวณสถานะของแต่ละ record
+function calcStatus(r){
+  var startMin = timeToMin(WORK_START);
+  var endMin   = timeToMin(WORK_END);
+  var recMin   = timeToMin(r.time);
+  var result   = { tag:'ok', label:'ปกติ', detail:'', lateMin:0, earlyMin:0, otMin:0 };
+
+  if(r.type==='in'){
+    if(recMin > startMin){
+      result.tag   = 'late';
+      result.lateMin = recMin - startMin;
+      result.label = 'เข้าสาย';
+      result.detail = 'สาย '+minToStr(result.lateMin);
+    }
+  } else { // out
+    if(recMin < endMin){
+      result.tag     = 'early';
+      result.earlyMin = endMin - recMin;
+      result.label   = 'ออกก่อนเวลา';
+      result.detail  = 'ก่อนเวลา '+minToStr(result.earlyMin);
+    } else if(recMin > endMin){
+      result.tag   = 'ot';
+      result.otMin = recMin - endMin;
+      result.label = 'OT';
+      result.detail = 'OT '+minToStr(result.otMin);
+    }
+  }
+  return result;
+}
+
+// คำนวณ OT รายวัน (ต้องมีทั้ง in และ out)
+function calcDayOT(empId, date){
+  var inRec  = records.find(function(r){ return r.empId===empId&&r.date===date&&r.type==='in'&&r.status!=='deleted'; });
+  var outRec = records.find(function(r){ return r.empId===empId&&r.date===date&&r.type==='out'&&r.status!=='deleted'; });
+  if(!inRec||!outRec) return null;
+  var inMin    = timeToMin(inRec.time);
+  var outMin   = timeToMin(outRec.time);
+  var endMin   = timeToMin(WORK_END);
+  var startMin = timeToMin(WORK_START);
+  // ชั่วโมงทำงานจริง (ลบพัก)
+  var workedMin = outMin - inMin - BREAK_MIN;
+  // เวลามาตรฐาน
+  var stdMin = endMin - startMin - BREAK_MIN;
+  var otMin  = workedMin - stdMin;
+  return { workedMin:workedMin, stdMin:stdMin, otMin:otMin };
+}
+
+// ════════════════════════════════════════════
+//  HISTORY FILTER STATE
+// ════════════════════════════════════════════
+var histFilter = { type:'all', status:'all' };
+
+function setTypeFilter(v){
+  histFilter.type = v;
+  ['all','in','out'].forEach(function(t){
+    document.getElementById('fc-'+t).classList.toggle('active', t===v);
+  });
+  applyHistFilter();
+}
+function setStatusFilter(v){
+  histFilter.status = v;
+  ['all','late','early','ot','ok'].forEach(function(t){
+    document.getElementById('fs-'+t).classList.toggle('active', t===v);
+  });
+  applyHistFilter();
+}
+function clearHistFilter(){
+  document.getElementById('search-hist').value='';
+  document.getElementById('f-date-from').value='';
+  document.getElementById('f-date-to').value='';
+  histFilter={type:'all',status:'all'};
+  ['all','in','out'].forEach(function(t){ document.getElementById('fc-'+t).classList.toggle('active',t==='all'); });
+  ['all','late','early','ot','ok'].forEach(function(t){ document.getElementById('fs-'+t).classList.toggle('active',t==='all'); });
+  applyHistFilter();
+}
+
+function applyHistFilter(){
+  var q        = (document.getElementById('search-hist').value||'').trim().toLowerCase();
+  var dateFrom = document.getElementById('f-date-from').value;
+  var dateTo   = document.getElementById('f-date-to').value;
+
+  var active = records.filter(function(r){ return r.status!=='deleted'; });
+
+  // ── filter ─────────────────────────────────
+  var filtered = active.filter(function(r){
+    if(q && r.name.toLowerCase().indexOf(q)===-1) return false;
+    if(dateFrom && r.date < dateFrom) return false;
+    if(dateTo   && r.date > dateTo)   return false;
+    if(histFilter.type!=='all' && r.type!==histFilter.type) return false;
+    if(histFilter.status!=='all'){
+      var st=calcStatus(r);
+      if(histFilter.status!==st.tag) return false;
+    }
+    return true;
+  });
+
+  document.getElementById('hist-count').textContent=filtered.length+' รายการ';
+  renderHistList(filtered);
+  renderHistSummary(filtered);
+}
+
 function renderHistory(){
-  var active=records.filter(function(r){return r.status!=='deleted';});
-  document.getElementById('hist-count').textContent=active.length+' รายการ';
+  applyHistFilter();
+}
+
+function renderHistSummary(filtered){
+  var box=document.getElementById('hist-summary');
+  if(filtered.length===0){ box.style.display='none'; return; }
+  var lateCount=0, earlyCount=0, otCount=0, otTotalMin=0;
+  filtered.forEach(function(r){
+    var st=calcStatus(r);
+    if(st.tag==='late')  lateCount++;
+    if(st.tag==='early') earlyCount++;
+    if(st.tag==='ot'){   otCount++; otTotalMin+=st.otMin; }
+  });
+  box.style.display='';
+  box.innerHTML='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">'
+    +'<div><div style="font-size:20px;font-weight:600;color:var(--red)">'+lateCount+'</div><div style="font-size:11px;color:var(--text-muted)">เข้าสาย</div></div>'
+    +'<div><div style="font-size:20px;font-weight:600;color:var(--amber)">'+earlyCount+'</div><div style="font-size:11px;color:var(--text-muted)">ออกก่อน</div></div>'
+    +'<div><div style="font-size:20px;font-weight:600;color:var(--blue)">'+otCount+'</div><div style="font-size:11px;color:var(--text-muted)">OT'+( otTotalMin>0?' (รวม '+minToStr(otTotalMin)+')':'')+'</div></div>'
+    +'</div>';
+}
+
+function renderHistList(data){
   var list=document.getElementById('hist-list');
-  if(active.length===0){
-    list.innerHTML='<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">ยังไม่มีประวัติ</div></div>';
+  if(data.length===0){
+    list.innerHTML='<div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">ไม่พบข้อมูลที่ตรงกับเงื่อนไข</div></div>';
     return;
   }
-  list.innerHTML=active.slice(0,30).map(function(r){
-    var tl=r.type==='in'?'เข้างาน':'ออกงาน';
-    var bc=r.type==='in'?'b-in':'b-out';
-    return '<div class="hist-card">'
-      +'<div class="hist-info"><div class="hname">'+r.name+'</div>'
-      +'<div class="hdate">'+r.date+' · '+r.time+' น.'+(r.location?' · 📍':'')+'</div>'
-      +(r.note?'<div class="hdate" style="color:var(--text-muted)">'+r.note+'</div>':'')
-      +'</div>'
-      +'<div class="hist-right">'
-      +'<span class="lock-icon-sm">🔒</span>'
-      +'<span class="badge '+bc+'">'+tl+'</span>'
-      +'</div></div>';
+
+  // จัดกลุ่มตามวันที่
+  var byDate={};
+  data.forEach(function(r){
+    if(!byDate[r.date]) byDate[r.date]=[];
+    byDate[r.date].push(r);
+  });
+  var dates=Object.keys(byDate).sort().reverse();
+
+  list.innerHTML=dates.map(function(date){
+    var rows=byDate[date];
+    var dayHtml=rows.map(function(r){
+      var tl=r.type==='in'?'เข้างาน':'ออกงาน';
+      var bc=r.type==='in'?'b-in':'b-out';
+      var st=calcStatus(r);
+      var tagCls='tag-'+st.tag;
+      var otRow='';
+      // แสดง OT summary ถ้าเป็น out record และมีข้อมูลครบ
+      if(r.type==='out'){
+        var day=calcDayOT(r.empId, r.date);
+        if(day && day.otMin>0){
+          otRow='<div style="margin-top:4px;display:flex;align-items:center;gap:6px">'
+            +'<span class="tag-ot">⭐ OT '+minToStr(day.otMin)+'</span>'
+            +'<span style="font-size:11px;color:var(--text-muted)">ทำงาน '+minToStr(day.workedMin)+'</span>'
+            +'</div>';
+        } else if(day && day.otMin<0){
+          otRow='<div style="margin-top:4px"><span class="tag-early">ขาด '+minToStr(Math.abs(day.otMin))+'</span></div>';
+        }
+      }
+      return '<div class="hist-card" style="margin-bottom:6px">'
+        +'<div class="hist-info"><div class="hname">'+r.name+'</div>'
+        +'<div class="hdate">'+r.time+' น.'+(r.location?' · 📍':'')+'</div>'
+        +(r.note?'<div class="hdate">'+r.note+'</div>':'')+otRow
+        +'</div>'
+        +'<div class="hist-right" style="flex-direction:column;align-items:flex-end;gap:4px">'
+        +'<span class="badge '+bc+'">'+tl+'</span>'
+        +(st.tag!=='ok'?'<span class="'+tagCls+'">'+st.detail+'</span>':'<span class="tag-ok">ปกติ</span>')
+        +'</div></div>';
+    }).join('');
+
+    // day OT summary row
+    var empIds=[...new Set(rows.map(function(r){return r.empId;}))];
+    var otSummaries=empIds.map(function(eid){
+      var day=calcDayOT(eid,date);
+      if(!day) return '';
+      if(day.otMin>0) return '<div class="alert alert-info" style="font-size:12px;margin-top:4px;padding:7px 10px">⭐ '+rows.find(function(r){return r.empId===eid;}).name+' — OT วันนี้: '+minToStr(day.otMin)+'</div>';
+      return '';
+    }).join('');
+
+    return '<div style="margin-bottom:14px">'
+      +'<div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:6px;padding:0 2px">'+formatDateTH(date)+'</div>'
+      +dayHtml+otSummaries
+      +'</div>';
   }).join('');
+}
+
+function formatDateTH(dateStr){
+  var d=new Date(dateStr+'T00:00:00');
+  var days=['อา.','จ.','อ.','พ.','พฤ.','ศ.','ส.'];
+  var months=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  return days[d.getDay()]+' '+d.getDate()+' '+months[d.getMonth()]+' '+(d.getFullYear()+543);
 }
 
 // ════════════════════════════════════════════
 //  SETTINGS
 // ════════════════════════════════════════════
-function renderSettings(){
-  document.getElementById('set-url').value=settings.url||'';
-  document.getElementById('url-st').textContent=settings.url?'✅ ตั้งค่า URL แล้ว':'';
-  document.getElementById('tgl-photo').className='toggle'+(settings.requirePhoto?' on':'');
-  document.getElementById('tgl-gps').className='toggle'+(settings.requireGPS?' on':'');
-  document.getElementById('rec-count').textContent=records.filter(function(r){return r.status!=='deleted';}).length+' รายการ';
-  // employee list in settings
-  var el=document.getElementById('emp-setting-list');
-  el.innerHTML=employees.map(function(e){
-    return '<div class="setting-row">'
-      +'<div><div class="setting-lbl">'+e.name+'</div><div class="setting-sub">'+e.id+' · '+e.role+'</div></div>'
-      +'<button class="btn-del" onclick="removeEmp(\''+e.id+'\')">ลบ</button>'
-      +'</div>';
-  }).join('')||'<div style="font-size:13px;color:var(--text-muted);padding:8px 0">ยังไม่มีรายชื่อ</div>';
-}
+// renderSettings moved into Admin panel
 function saveUrl(){
   settings.url=document.getElementById('set-url').value.trim();
   saveCfg();
@@ -968,6 +1303,23 @@ function checkAdmin(){
   else { document.getElementById('admin-err').style.display='block'; }
 }
 function logoutAdmin(){ isAdmin=false; toast('ออกจากระบบ Admin แล้ว'); goHome(); }
+function renderAdminSettings(){
+  document.getElementById('set-url').value=settings.url||'';
+  document.getElementById('url-st').textContent=settings.url?'✅ ตั้งค่า URL แล้ว':'';
+  document.getElementById('tgl-gps').className='toggle'+(settings.requireGPS?' on':'');
+  var active=records.filter(function(r){return r.status!=='deleted';});
+  document.getElementById('rec-count').textContent=active.length+' รายการ';
+  document.getElementById('emp-count').textContent=employees.length+' คน';
+}
+function renderEmpSettings(){
+  var el=document.getElementById('emp-setting-list');
+  el.innerHTML=employees.map(function(e){
+    return '<div class="setting-row">'
+      +'<div><div class="setting-lbl">'+e.name+'</div><div class="setting-sub">'+e.id+' · '+e.role+'</div></div>'
+      +'<button class="btn-del" onclick="removeEmp(\''+e.id+'\')">ลบ</button>'
+      +'</div>';
+  }).join('')||'<div style="font-size:13px;color:var(--text-muted);padding:8px 0">ยังไม่มีรายชื่อ</div>';
+}
 function renderAdminPanel(){
   var today=todayStr();
   var todayRecs=records.filter(function(r){return r.date===today&&r.status!=='deleted';});
@@ -1008,7 +1360,11 @@ function adminAddRecord(){
   document.getElementById('loc-box').className='loc-box';
   document.getElementById('loc-txt').textContent='แตะเพื่อรับตำแหน่ง GPS';
   document.getElementById('pb1').className='photo-box';
+  document.getElementById('pb1').style.borderColor='var(--red)';
+  document.getElementById('pb1').style.borderStyle='dashed';
   document.getElementById('pb2').className='photo-box';
+  document.getElementById('pb2').style.borderColor='var(--red)';
+  document.getElementById('pb2').style.borderStyle='dashed';
   document.getElementById('pv1').src='';
   document.getElementById('pv2').src='';
   document.getElementById('pcap1').style.display='none';
@@ -1034,11 +1390,14 @@ function confirmReset(){
 }
 function changePw(){
   var np=document.getElementById('new-pw').value.trim();
-  if(np.length<4){ toast('⚠️ รหัสผ่านต้องมีอย่างน้อย 4 ตัว'); return; }
+  var cp=document.getElementById('confirm-pw').value.trim();
+  if(np.length<6){ toast('⚠️ รหัสผ่านต้องมีอย่างน้อย 6 ตัว'); return; }
+  if(np!==cp){ toast('❌ รหัสผ่านไม่ตรงกัน กรุณากรอกใหม่'); return; }
   adminPw=np;
   try{localStorage.setItem('att_pw',adminPw);}catch(e){}
   document.getElementById('new-pw').value='';
-  toast('✅ เปลี่ยนรหัสผ่านแล้ว');
+  document.getElementById('confirm-pw').value='';
+  toast('✅ เปลี่ยนรหัสผ่านสำเร็จ');
 }
 
 // ── Init ───────────────────────────────────
