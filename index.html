@@ -255,6 +255,12 @@ textarea.form-input{resize:none;height:80px}
 .tag-early{background:#fef3d0;color:#8b5e08;font-size:11px;font-weight:600;padding:2px 7px;border-radius:10px}
 .tag-ot{background:#e0f0ff;color:#1855a0;font-size:11px;font-weight:600;padding:2px 7px;border-radius:10px}
 .tag-ok{background:#e8f5ee;color:#1a6b3c;font-size:11px;font-weight:600;padding:2px 7px;border-radius:10px}
+/* ── Dashboard KPI ─────────────────────────────── */
+.dash-kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.dash-kpi-card{background:var(--card);border-radius:var(--radius-sm);padding:10px 8px;text-align:center;box-shadow:var(--shadow)}
+.dash-kpi-icon{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 6px;font-size:15px}
+.dash-kpi-val{font-size:20px;font-weight:700;line-height:1;margin-bottom:3px}
+.dash-kpi-lbl{font-size:10px;color:var(--text-muted);font-weight:500}
 /* ── URL Config ─────────────────────────────── */
 .url-wrap{display:flex;gap:8px}
 .url-wrap input{flex:1;font-size:12px}
@@ -1704,6 +1710,405 @@ function changePw(){
   document.getElementById('new-pw').value='';
   document.getElementById('confirm-pw').value='';
   toast('✅ เปลี่ยนรหัสผ่านสำเร็จ');
+}
+
+
+// ════════════════════════════════════════════
+//  DASHBOARD ENGINE
+// ════════════════════════════════════════════
+var dashState = {
+  range: 'today',
+  view:  'overview',
+  empId: null
+};
+
+function initDashboard(){
+  if(!document.getElementById('dash-from').value){
+    setDashRange('today');
+  } else {
+    renderDashboard();
+  }
+}
+
+function setDashRange(r){
+  dashState.range = r;
+  var now = new Date();
+  var y = now.getFullYear(), m = now.getMonth(), d = now.getDate();
+  var from, to = todayStr();
+  if(r==='today'){
+    from = to;
+  } else if(r==='week'){
+    var d7 = new Date(y,m,d-6);
+    from = d7.getFullYear()+'-'+pad(d7.getMonth()+1)+'-'+pad(d7.getDate());
+  } else if(r==='month'){
+    from = y+'-'+pad(m+1)+'-01';
+  } else { // custom — ไม่บังคับ
+    from = document.getElementById('dash-from').value || to;
+    to   = document.getElementById('dash-to').value   || to;
+  }
+  document.getElementById('dash-from').value = from;
+  document.getElementById('dash-to').value   = to;
+  ['today','week','month','custom'].forEach(function(v){
+    document.getElementById('dr-'+v).classList.toggle('active', v===r);
+  });
+  renderDashboard();
+}
+
+function setDashView(v){
+  dashState.view = v;
+  document.getElementById('dv-overview').className   = 'type-btn' + (v==='overview'  ? ' active-in' : '');
+  document.getElementById('dv-individual').className = 'type-btn' + (v==='individual'? ' active-in' : '');
+  document.getElementById('dash-overview').style.display    = v==='overview'   ? '' : 'none';
+  document.getElementById('dash-individual').style.display  = v==='individual' ? '' : 'none';
+  if(v==='individual') renderEmpSelector();
+  renderDashboard();
+}
+
+// ── หา record ในช่วงวันที่ ──────────────────────────────────
+function getDashRecords(){
+  var from = document.getElementById('dash-from').value;
+  var to   = document.getElementById('dash-to').value;
+  return records.filter(function(r){
+    return r.status !== 'deleted' && r.date >= from && r.date <= to;
+  });
+}
+
+// ── คำนวณ performance พนักงาน 1 คน ──────────────────────────
+function calcEmpPerf(empId, recs){
+  var inRecs  = recs.filter(function(r){ return r.empId===empId && r.type==='in'; });
+  var outRecs = recs.filter(function(r){ return r.empId===empId && r.type==='out'; });
+  var dates   = [...new Set(inRecs.map(function(r){ return r.date; }))].sort();
+  var lateCount=0, earlyCount=0, otCount=0, onTimeCount=0;
+  var totalOTMin=0, totalLateMin=0, totalWorkedMin=0;
+  var workTypes = {};
+
+  dates.forEach(function(date){
+    var inR  = inRecs.find(function(r){ return r.date===date; });
+    var outR = outRecs.find(function(r){ return r.date===date; });
+    if(inR){
+      var inSt = calcStatus(inR);
+      if(inSt.tag==='late'){ lateCount++; totalLateMin+=inSt.lateMin; }
+      else onTimeCount++;
+      var wt = inR.workType||'Office';
+      workTypes[wt] = (workTypes[wt]||0)+1;
+    }
+    if(outR){
+      var outSt = calcStatus(outR);
+      if(outSt.tag==='early') earlyCount++;
+      if(outSt.tag==='ot'){   otCount++; totalOTMin+=outSt.otMin; }
+    }
+    if(inR && outR){
+      var day = calcDayOT(empId, date);
+      if(day) totalWorkedMin += day.workedMin;
+    }
+  });
+
+  var totalDays  = dates.length;
+  var scoreBase  = totalDays > 0 ? Math.round(((onTimeCount/totalDays)*70) + ((1 - earlyCount/Math.max(totalDays,1))*30)) : 0;
+  var score      = Math.min(100, Math.max(0, scoreBase));
+
+  return {
+    empId:empId, days:totalDays,
+    lateCount:lateCount, earlyCount:earlyCount, otCount:otCount, onTimeCount:onTimeCount,
+    totalOTMin:totalOTMin, totalLateMin:totalLateMin, totalWorkedMin:totalWorkedMin,
+    score:score, workTypes:workTypes, inCount:inRecs.length, outCount:outRecs.length
+  };
+}
+
+// ════════════════════════════════════════════
+//  RENDER DASHBOARD
+// ════════════════════════════════════════════
+function renderDashboard(){
+  var dashRecs = getDashRecords();
+  var now = new Date();
+  document.getElementById('dash-updated').textContent = 'อัปเดต '+pad(now.getHours())+':'+pad(now.getMinutes());
+  if(dashState.view==='overview') renderOverview(dashRecs);
+  else renderIndividualView(dashRecs);
+}
+
+// ── OVERVIEW ───────────────────────────────────────────────
+function renderOverview(recs){
+  renderKPIs(recs);
+  renderWorkTypeChart(recs);
+  renderStatusChart(recs);
+  renderLeaderboard(recs);
+  renderDailyTable(recs);
+}
+
+function renderKPIs(recs){
+  var inRecs    = recs.filter(function(r){ return r.type==='in'; });
+  var outRecs   = recs.filter(function(r){ return r.type==='out'; });
+  var lateRecs  = inRecs.filter(function(r){ return calcStatus(r).tag==='late'; });
+  var earlyRecs = outRecs.filter(function(r){ return calcStatus(r).tag==='early'; });
+  var otRecs    = outRecs.filter(function(r){ return calcStatus(r).tag==='ot'; });
+  var activeEmpIds = [...new Set(recs.map(function(r){ return r.empId; }).filter(Boolean))];
+  var onTimeRate = inRecs.length > 0 ? Math.round(((inRecs.length-lateRecs.length)/inRecs.length)*100) : 0;
+
+  document.getElementById('dash-kpis').innerHTML =
+    kpiCard('👥', activeEmpIds.length, 'พนักงาน', 'var(--green)') +
+    kpiCard('📥', inRecs.length, 'เช็คอิน', '#1855a0') +
+    kpiCard('⏰', lateRecs.length, 'เข้าสาย', '#9e3a1a') +
+    kpiCard('🏃', earlyRecs.length, 'ออกก่อน', '#8b5e08') +
+    kpiCard('⭐', otRecs.length, 'มี OT', '#1855a0') +
+    kpiCard('✅', onTimeRate+'%', 'ตรงเวลา', 'var(--green)');
+}
+function kpiCard(icon, val, lbl, color){
+  return '<div class="dash-kpi-card"><div class="dash-kpi-icon" style="background:'+color+'20">'+icon+'</div>'
+    +'<div class="dash-kpi-val" style="color:'+color+'">'+val+'</div>'
+    +'<div class="dash-kpi-lbl">'+lbl+'</div></div>';
+}
+
+function renderWorkTypeChart(recs){
+  var inRecs = recs.filter(function(r){ return r.type==='in'; });
+  var counts = {Office:0, WFH:0, Hybrid:0};
+  inRecs.forEach(function(r){ var wt=r.workType||'Office'; if(counts[wt]!==undefined) counts[wt]++; });
+  var total = inRecs.length || 1;
+  var colors = {Office:'var(--green)', WFH:'#f59e0b', Hybrid:'#6366f1'};
+  var icons  = {Office:'🏢', WFH:'🏠', Hybrid:'🔄'};
+  var bars = Object.keys(counts).map(function(k){
+    var pct = Math.round(counts[k]/total*100);
+    return '<div style="margin-bottom:10px">'
+      +'<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
+      +'<span style="font-size:13px">'+icons[k]+' '+k+'</span>'
+      +'<span style="font-size:13px;font-weight:600">'+counts[k]+' วัน ('+pct+'%)</span>'
+      +'</div>'
+      +'<div style="background:var(--gray-light);border-radius:8px;height:10px;overflow:hidden">'
+      +'<div style="height:100%;width:'+pct+'%;background:'+colors[k]+';border-radius:8px;transition:width .5s"></div>'
+      +'</div></div>';
+  }).join('');
+  document.getElementById('dash-wtype-chart').innerHTML = bars || '<div class="empty" style="padding:16px">ไม่มีข้อมูล</div>';
+}
+
+function renderStatusChart(recs){
+  var inRecs  = recs.filter(function(r){ return r.type==='in'; });
+  var outRecs = recs.filter(function(r){ return r.type==='out'; });
+  var late  = inRecs.filter(function(r){ return calcStatus(r).tag==='late'; }).length;
+  var onTime= inRecs.length - late;
+  var early = outRecs.filter(function(r){ return calcStatus(r).tag==='early'; }).length;
+  var ot    = outRecs.filter(function(r){ return calcStatus(r).tag==='ot'; }).length;
+  var outOk = outRecs.length - early - ot;
+  var items = [
+    {lbl:'เข้าตรงเวลา', val:onTime, color:'var(--green)',   total:inRecs.length||1},
+    {lbl:'เข้าสาย',     val:late,   color:'#ef4444',         total:inRecs.length||1},
+    {lbl:'OT',          val:ot,     color:'#6366f1',          total:outRecs.length||1},
+    {lbl:'ออกก่อนเวลา', val:early,  color:'#f59e0b',          total:outRecs.length||1},
+    {lbl:'ออกตรงเวลา',  val:outOk,  color:'#10b981',          total:outRecs.length||1}
+  ];
+  var bars = items.map(function(it){
+    var pct = Math.round(it.val/it.total*100);
+    return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'
+      +'<div style="width:80px;font-size:11px;color:var(--text-muted);flex-shrink:0;text-align:right">'+it.lbl+'</div>'
+      +'<div style="flex:1;background:var(--gray-light);border-radius:8px;height:18px;overflow:hidden">'
+      +'<div style="height:100%;width:'+pct+'%;background:'+it.color+';border-radius:8px;display:flex;align-items:center;padding-left:6px;transition:width .5s">'
+      +(it.val>0?'<span style="font-size:10px;color:#fff;font-weight:600">'+it.val+'</span>':'')
+      +'</div></div>'
+      +'<div style="width:32px;font-size:11px;font-weight:600;color:var(--text)">'+pct+'%</div>'
+      +'</div>';
+  }).join('');
+  document.getElementById('dash-status-chart').innerHTML = bars || '<div class="empty" style="padding:16px">ไม่มีข้อมูล</div>';
+}
+
+function renderLeaderboard(recs){
+  var container = document.getElementById('dash-leaderboard');
+  if(employees.length===0){ container.innerHTML='<div class="empty">ไม่มีข้อมูลพนักงาน</div>'; return; }
+  var perfs = employees.map(function(e){ return Object.assign(calcEmpPerf(e.id, recs), {emp:e}); });
+  perfs.sort(function(a,b){ return b.score-a.score || a.lateCount-b.lateCount; });
+  var medals = ['🥇','🥈','🥉'];
+  container.innerHTML = perfs.map(function(p, i){
+    if(p.days===0) return '<div style="display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--border);opacity:.4">'
+      +'<div class="avatar '+p.emp.cls+'" style="width:34px;height:34px;font-size:12px">'+p.emp.av+'</div>'
+      +'<div style="flex:1"><div style="font-size:13px;font-weight:600">'+p.emp.name+'</div>'
+      +'<div style="font-size:11px;color:var(--text-muted)">ไม่มีข้อมูลในช่วงนี้</div></div>'
+      +'<div style="font-size:20px">—</div></div>';
+    var scoreColor = p.score>=80?'var(--green)':p.score>=60?'#f59e0b':'#ef4444';
+    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid rgba(0,0,0,.06);cursor:pointer" onclick="quickViewEmp(''+p.emp.id+'')">'
+      +'<div style="font-size:20px;width:28px;text-align:center">'+(medals[i]||'<span style="font-size:13px;color:var(--text-muted)">'+(i+1)+'</span>')+'</div>'
+      +'<div class="avatar '+p.emp.cls+'" style="width:34px;height:34px;font-size:12px">'+p.emp.av+'</div>'
+      +'<div style="flex:1;min-width:0">'
+        +'<div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+p.emp.name+'</div>'
+        +'<div style="font-size:11px;color:var(--text-muted);margin-top:2px">'
+          +(p.lateCount>0?'<span style="color:#ef4444">⏰ สาย '+p.lateCount+'</span> · ':'')
+          +(p.otCount>0?'<span style="color:#6366f1">⭐ OT '+p.otCount+'</span> · ':'')
+          +(p.earlyCount>0?'<span style="color:#f59e0b">🏃 ก่อนเวลา '+p.earlyCount+'</span> · ':'')
+          +'<span>'+p.days+' วัน</span>'
+        +'</div>'
+      +'</div>'
+      +'<div style="text-align:right;flex-shrink:0">'
+        +'<div style="font-size:18px;font-weight:700;color:'+scoreColor+'">'+p.score+'</div>'
+        +'<div style="font-size:10px;color:var(--text-muted)">คะแนน</div>'
+      +'</div></div>';
+  }).join('');
+}
+
+function renderDailyTable(recs){
+  var container = document.getElementById('dash-daily-table');
+  var dates = [...new Set(recs.map(function(r){ return r.date; }))].sort().reverse().slice(0,14);
+  if(dates.length===0){ container.innerHTML='<div class="empty" style="padding:20px">ไม่มีข้อมูลในช่วงนี้</div>'; return; }
+
+  var html = '<table style="width:100%;border-collapse:collapse;font-size:12px">'
+    +'<thead><tr style="background:var(--green);color:#fff">'
+    +'<th style="padding:6px 8px;text-align:left;white-space:nowrap">วันที่</th>';
+  employees.forEach(function(e){
+    html += '<th style="padding:6px 4px;text-align:center;min-width:52px">'+e.av+'<div style="font-size:9px;font-weight:400;opacity:.8">'+e.name.split(' ')[0]+'</div></th>';
+  });
+  html += '</tr></thead><tbody>';
+
+  dates.forEach(function(date, di){
+    html += '<tr style="background:'+(di%2===0?'#fff':'var(--gray-light)'+'')+'">'
+      +'<td style="padding:6px 8px;white-space:nowrap;font-weight:500">'+formatDateTH(date).replace(' ','&nbsp;')+'</td>';
+    employees.forEach(function(e){
+      var inR  = records.find(function(r){ return r.empId===e.id&&r.date===date&&r.type==='in'&&r.status!=='deleted'; });
+      var outR = records.find(function(r){ return r.empId===e.id&&r.date===date&&r.type==='out'&&r.status!=='deleted'; });
+      var cell = '';
+      if(inR && outR){
+        var inSt  = calcStatus(inR);
+        var outSt = calcStatus(outR);
+        var day   = calcDayOT(e.id, date);
+        var dotIn  = inSt.tag==='late'  ? '🔴' : '🟢';
+        var dotOut = outSt.tag==='early'? '🟡' : outSt.tag==='ot'?'🔵':'🟢';
+        var otTxt  = (day&&day.otMin>0) ? '<br><span style="font-size:9px;color:#6366f1">OT '+minToStr(day.otMin)+'</span>' : '';
+        cell = dotIn+dotOut+'<br><span style="font-size:9px;color:var(--text-muted)">'+inR.time+'</span>'+otTxt;
+      } else if(inR){
+        var st2=calcStatus(inR);
+        cell = (st2.tag==='late'?'🔴':'🟢')+'⬜<br><span style="font-size:9px;color:var(--text-muted)">'+inR.time+'</span>';
+      } else {
+        cell = '<span style="font-size:16px;opacity:.2">—</span>';
+      }
+      html += '<td style="padding:5px 4px;text-align:center">'+cell+'</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  html += '<div style="font-size:11px;color:var(--text-muted);margin-top:8px;display:flex;gap:10px;flex-wrap:wrap">'
+    +'<span>🟢 ตรงเวลา</span><span>🔴 สาย</span><span>🟡 ออกก่อน</span><span>🔵 OT</span><span>⬜ ยังไม่ออก</span></div>';
+  container.innerHTML = html;
+}
+
+// ── INDIVIDUAL VIEW ──────────────────────────────────────────
+function renderEmpSelector(){
+  var sel = document.getElementById('dash-emp-selector');
+  sel.innerHTML = employees.map(function(e){
+    var isActive = dashState.empId===e.id;
+    return '<button class="'+(isActive?'filter-chip active':'filter-chip')+'" onclick="selectDashEmp(''+e.id+'')">'
+      +'<span style="font-family:monospace;font-size:10px;opacity:.7">'+e.id+'</span> '+e.name+'</button>';
+  }).join('');
+}
+
+function selectDashEmp(empId){
+  dashState.empId = empId;
+  renderEmpSelector();
+  renderIndividualView(getDashRecords());
+}
+
+function quickViewEmp(empId){
+  setDashView('individual');
+  dashState.empId = empId;
+  renderEmpSelector();
+  renderIndividualView(getDashRecords());
+}
+
+function renderIndividualView(recs){
+  var container = document.getElementById('dash-individual-content');
+  if(!dashState.empId){
+    container.innerHTML='<div class="empty"><div class="empty-icon">👆</div><div class="empty-text">เลือกพนักงานด้านบน</div></div>';
+    return;
+  }
+  var emp  = employees.find(function(e){ return e.id===dashState.empId; });
+  if(!emp){ container.innerHTML='<div class="empty">ไม่พบข้อมูลพนักงาน</div>'; return; }
+  var perf = calcEmpPerf(emp.id, recs);
+  var empRecs = recs.filter(function(r){ return r.empId===emp.id; });
+  var scoreColor = perf.score>=80?'var(--green)':perf.score>=60?'#f59e0b':'#ef4444';
+
+  // header card
+  var html = '<div class="card" style="margin-bottom:10px">'
+    +'<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">'
+    +'<div class="avatar '+emp.cls+'" style="width:48px;height:48px;font-size:16px">'+emp.av+'</div>'
+    +'<div><div style="font-size:16px;font-weight:600">'+emp.name+'</div>'
+    +'<div style="font-size:12px;color:var(--text-muted)"><span style="font-family:monospace;background:var(--gray-light);padding:1px 6px;border-radius:4px">'+emp.id+'</span> · '+emp.role+'</div>'
+    +'</div>'
+    +'<div style="margin-left:auto;text-align:center">'
+    +'<div style="font-size:32px;font-weight:700;color:'+scoreColor+';line-height:1">'+perf.score+'</div>'
+    +'<div style="font-size:11px;color:var(--text-muted)">คะแนน</div>'
+    +'</div></div>'
+    // Score bar
+    +'<div style="background:var(--gray-light);border-radius:8px;height:8px;overflow:hidden;margin-bottom:4px">'
+    +'<div style="height:100%;width:'+perf.score+'%;background:'+scoreColor+';border-radius:8px;transition:width .6s"></div></div>'
+    +'<div style="font-size:11px;color:var(--text-muted);text-align:right">'+(perf.score>=80?'🌟 ยอดเยี่ยม':perf.score>=60?'👍 ดี':'⚠️ ควรปรับปรุง')+'</div>'
+    +'</div>';
+
+  // stats grid
+  html += '<div class="dash-kpi-grid" style="margin-bottom:10px">'
+    + kpiCard('📅', perf.days, 'วันทำงาน', 'var(--green)')
+    + kpiCard('✅', perf.onTimeCount, 'ตรงเวลา', 'var(--green)')
+    + kpiCard('⏰', perf.lateCount, 'เข้าสาย', '#ef4444')
+    + kpiCard('🏃', perf.earlyCount, 'ออกก่อน', '#f59e0b')
+    + kpiCard('⭐', perf.otCount, 'มี OT', '#6366f1')
+    + kpiCard('⌛', perf.totalWorkedMin>0?minToStr(perf.totalWorkedMin):'-', 'รวม', '#1855a0')
+    +'</div>';
+
+  // work type bar
+  if(Object.keys(perf.workTypes).length>0){
+    html += '<div class="card" style="margin-bottom:10px"><div class="card-title">รูปแบบการทำงาน</div>';
+    var wtColors = {Office:'var(--green)', WFH:'#f59e0b', Hybrid:'#6366f1'};
+    var wtIcons  = {Office:'🏢', WFH:'🏠', Hybrid:'🔄'};
+    var totalDays = perf.days||1;
+    Object.keys(perf.workTypes).forEach(function(k){
+      var pct=Math.round(perf.workTypes[k]/totalDays*100);
+      html += '<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;margin-bottom:3px">'
+        +'<span style="font-size:12px">'+wtIcons[k]+' '+k+'</span>'
+        +'<span style="font-size:12px;font-weight:600">'+perf.workTypes[k]+' วัน</span></div>'
+        +'<div style="background:var(--gray-light);border-radius:8px;height:8px;overflow:hidden">'
+        +'<div style="height:100%;width:'+pct+'%;background:'+wtColors[k]+';border-radius:8px"></div>'
+        +'</div></div>';
+    });
+    html += '</div>';
+  }
+
+  // late/OT detail
+  if(perf.totalLateMin>0 || perf.totalOTMin>0){
+    html += '<div class="card" style="margin-bottom:10px"><div class="card-title">สรุปเวลา</div>';
+    if(perf.totalLateMin>0) html+='<div class="detail-row"><span class="dk">รวมเวลาสาย</span><span class="dv" style="color:#ef4444">'+minToStr(perf.totalLateMin)+'</span></div>';
+    if(perf.totalOTMin>0)   html+='<div class="detail-row"><span class="dk">รวม OT</span><span class="dv" style="color:#6366f1">'+minToStr(perf.totalOTMin)+'</span></div>';
+    if(perf.totalWorkedMin>0)html+='<div class="detail-row"><span class="dk">รวมชั่วโมงทำงาน</span><span class="dv">'+minToStr(perf.totalWorkedMin)+'</span></div>';
+    html += '</div>';
+  }
+
+  // timeline per day
+  html += '<div class="card"><div class="card-title">ไทม์ไลน์รายวัน</div>';
+  var dates = [...new Set(empRecs.map(function(r){ return r.date; }))].sort().reverse();
+  if(dates.length===0){
+    html += '<div class="empty" style="padding:16px">ไม่มีข้อมูลในช่วงนี้</div>';
+  } else {
+    dates.forEach(function(date){
+      var inR  = empRecs.find(function(r){ return r.date===date&&r.type==='in'; });
+      var outR = empRecs.find(function(r){ return r.date===date&&r.type==='out'; });
+      var inSt  = inR  ? calcStatus(inR)  : null;
+      var outSt = outR ? calcStatus(outR) : null;
+      var day   = (inR&&outR) ? calcDayOT(emp.id, date) : null;
+      html += '<div style="padding:10px 0;border-bottom:1px solid rgba(0,0,0,.06)">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+        +'<div style="font-size:13px;font-weight:600">'+formatDateTH(date)+'</div>'
+        +(day&&day.otMin>0?'<span class="tag-ot">⭐ OT '+minToStr(day.otMin)+'</span>':'')
+        +(day&&day.otMin<0?'<span class="tag-early">ขาด '+minToStr(Math.abs(day.otMin))+'</span>':'')
+        +'</div>'
+        +'<div style="display:flex;gap:10px">'
+        +(inR?'<div style="flex:1;background:var(--green-light);border-radius:8px;padding:8px 10px">'
+          +'<div style="font-size:10px;color:var(--text-muted);margin-bottom:2px">📥 เข้างาน</div>'
+          +'<div style="font-size:14px;font-weight:600">'+inR.time+' น.</div>'
+          +(inSt&&inSt.tag!=='ok'?'<span class="tag-'+inSt.tag+'" style="font-size:10px">'+inSt.detail+'</span>':'<span class="tag-ok" style="font-size:10px">ตรงเวลา</span>')
+          +(inR.workType?'<div style="font-size:10px;color:var(--text-muted);margin-top:3px">'+getWorkTypeIcon(inR.workType)+' '+inR.workType+'</div>':'')
+          +'</div>':'<div style="flex:1;background:var(--gray-light);border-radius:8px;padding:8px 10px;opacity:.4"><div style="font-size:10px;color:var(--text-muted)">📥 เข้างาน</div><div style="font-size:13px">—</div></div>')
+        +(outR?'<div style="flex:1;background:#e8f0fe;border-radius:8px;padding:8px 10px">'
+          +'<div style="font-size:10px;color:var(--text-muted);margin-bottom:2px">📤 ออกงาน</div>'
+          +'<div style="font-size:14px;font-weight:600">'+outR.time+' น.</div>'
+          +(outSt&&outSt.tag!=='ok'?'<span class="tag-'+outSt.tag+'" style="font-size:10px">'+outSt.detail+'</span>':'<span class="tag-ok" style="font-size:10px">ตรงเวลา</span>')
+          +(outR.workType?'<div style="font-size:10px;color:var(--text-muted);margin-top:3px">'+getWorkTypeIcon(outR.workType)+' '+outR.workType+'</div>':'')
+          +'</div>':'<div style="flex:1;background:var(--gray-light);border-radius:8px;padding:8px 10px;opacity:.4"><div style="font-size:10px;color:var(--text-muted)">📤 ออกงาน</div><div style="font-size:13px">—</div></div>')
+        +'</div></div>';
+    });
+  }
+  html += '</div>';
+  container.innerHTML = html;
 }
 
 // ── Init ───────────────────────────────────
