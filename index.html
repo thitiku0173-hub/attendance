@@ -1936,7 +1936,7 @@ function renderLeaderboard(recs){
       +'<div style="font-size:11px;color:var(--text-muted)">ไม่มีข้อมูลในช่วงนี้</div></div>'
       +'<div style="font-size:20px">—</div></div>';
     var scoreColor = p.score>=80?'var(--green)':p.score>=60?'#f59e0b':'#ef4444';
-    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid rgba(0,0,0,.06);cursor:pointer" onclick="quickViewEmp(''+p.emp.id+'')">'
+    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid rgba(0,0,0,.06);cursor:pointer" onclick="quickViewEmp(\'+p.emp.id+\')">'
       +'<div style="font-size:20px;width:28px;text-align:center">'+(medals[i]||'<span style="font-size:13px;color:var(--text-muted)">'+(i+1)+'</span>')+'</div>'
       +'<div class="avatar '+p.emp.cls+'" style="width:34px;height:34px;font-size:12px">'+p.emp.av+'</div>'
       +'<div style="flex:1;min-width:0">'
@@ -2004,7 +2004,7 @@ function renderEmpSelector(){
   var sel = document.getElementById('dash-emp-selector');
   sel.innerHTML = employees.map(function(e){
     var isActive = dashState.empId===e.id;
-    return '<button class="'+(isActive?'filter-chip active':'filter-chip')+'" onclick="selectDashEmp(''+e.id+'')">'
+    return '<button class="'+(isActive?'filter-chip active':'filter-chip')+'" onclick="selectDashEmp(\'+e.id+\')">'
       +'<span style="font-family:monospace;font-size:10px;opacity:.7">'+e.id+'</span> '+e.name+'</button>';
   }).join('');
 }
