@@ -51,7 +51,7 @@ body{display:flex;flex-direction:column;max-width:480px;margin:0 auto;min-height
 .content{padding:16px;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:80px}
 
 /* ── Tab Bar ─────────────────────────────── */
-.tab-bar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#fff;border-top:1px solid var(--border);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom,0)}
+.tab-bar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#fff;border-top:1px solid var(--border);display:flex;z-index:200;padding-bottom:env(safe-area-inset-bottom,0)}
 .tab-item{flex:1;padding:10px 4px 8px;text-align:center;font-size:11px;color:var(--text-muted);background:none;border:none;font-family:'Sarabun',sans-serif;cursor:pointer;transition:color .15s;display:flex;flex-direction:column;align-items:center;gap:3px}
 .tab-item.active{color:var(--green)}
 .tab-icon{font-size:20px;line-height:1}
@@ -507,7 +507,7 @@ textarea.form-input{resize:none;height:80px}
      SCREEN: DASHBOARD
 ═══════════════════════════════════════════ -->
 <div class="screen" id="s-dashboard">
-  <div class="content">
+  <div class="content" style="padding-bottom:90px">
 
     <!-- ── Header ── -->
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
@@ -1301,6 +1301,15 @@ function getWorkTypeIcon(wt){
 }
 
 // ════════════════════════════════════════════
+//  UTILS
+// ════════════════════════════════════════════
+function uniqueArr(arr){
+  var seen={}, out=[];
+  arr.forEach(function(v){ if(!seen[v]){ seen[v]=1; out.push(v); } });
+  return out;
+}
+
+// ════════════════════════════════════════════
 //  WORK TIME CONFIG
 // ════════════════════════════════════════════
 var WORK_START = '08:30';  // เวลาเข้างาน
@@ -1490,7 +1499,7 @@ function renderHistList(data){
     }).join('');
 
     // day OT summary row
-    var empIds=[...new Set(rows.map(function(r){return r.empId;}))];
+    var empIds=uniqueArr(rows.map(function(r){return r.empId;}));
     var otSummaries=empIds.map(function(eid){
       var day=calcDayOT(eid,date);
       if(!day) return '';
@@ -1723,10 +1732,16 @@ var dashState = {
 };
 
 function initDashboard(){
-  if(!document.getElementById('dash-from').value){
-    setDashRange('today');
-  } else {
-    renderDashboard();
+  try {
+    if(!document.getElementById('dash-from').value){
+      setDashRange('today');
+    } else {
+      renderDashboard();
+    }
+  } catch(e){
+    console.error('Dashboard error:', e);
+    document.getElementById('dash-kpis').innerHTML =
+      '<div class="alert alert-err" style="grid-column:span 3">เกิดข้อผิดพลาด: '+e.message+'</div>';
   }
 }
 
@@ -1777,7 +1792,7 @@ function getDashRecords(){
 function calcEmpPerf(empId, recs){
   var inRecs  = recs.filter(function(r){ return r.empId===empId && r.type==='in'; });
   var outRecs = recs.filter(function(r){ return r.empId===empId && r.type==='out'; });
-  var dates   = [...new Set(inRecs.map(function(r){ return r.date; }))].sort();
+  var dates   = uniqueArr(inRecs.map(function(r){ return r.date; })).sort();
   var lateCount=0, earlyCount=0, otCount=0, onTimeCount=0;
   var totalOTMin=0, totalLateMin=0, totalWorkedMin=0;
   var workTypes = {};
@@ -1841,7 +1856,7 @@ function renderKPIs(recs){
   var lateRecs  = inRecs.filter(function(r){ return calcStatus(r).tag==='late'; });
   var earlyRecs = outRecs.filter(function(r){ return calcStatus(r).tag==='early'; });
   var otRecs    = outRecs.filter(function(r){ return calcStatus(r).tag==='ot'; });
-  var activeEmpIds = [...new Set(recs.map(function(r){ return r.empId; }).filter(Boolean))];
+  var activeEmpIds = uniqueArr(recs.map(function(r){ return r.empId; }).filter(Boolean));
   var onTimeRate = inRecs.length > 0 ? Math.round(((inRecs.length-lateRecs.length)/inRecs.length)*100) : 0;
 
   document.getElementById('dash-kpis').innerHTML =
@@ -1942,7 +1957,7 @@ function renderLeaderboard(recs){
 
 function renderDailyTable(recs){
   var container = document.getElementById('dash-daily-table');
-  var dates = [...new Set(recs.map(function(r){ return r.date; }))].sort().reverse().slice(0,14);
+  var dates = uniqueArr(recs.map(function(r){ return r.date; })).sort().reverse().slice(0,14);
   if(dates.length===0){ container.innerHTML='<div class="empty" style="padding:20px">ไม่มีข้อมูลในช่วงนี้</div>'; return; }
 
   var html = '<table style="width:100%;border-collapse:collapse;font-size:12px">'
@@ -2075,7 +2090,7 @@ function renderIndividualView(recs){
 
   // timeline per day
   html += '<div class="card"><div class="card-title">ไทม์ไลน์รายวัน</div>';
-  var dates = [...new Set(empRecs.map(function(r){ return r.date; }))].sort().reverse();
+  var dates = uniqueArr(empRecs.map(function(r){ return r.date; })).sort().reverse();
   if(dates.length===0){
     html += '<div class="empty" style="padding:16px">ไม่มีข้อมูลในช่วงนี้</div>';
   } else {
