@@ -279,9 +279,15 @@ textarea.form-input{resize:none;height:80px}
   <div class="header-inner">
     <div class="header-top">
       <h1>เช็คอิน - เช็คเอาต์</h1>
-      <span class="header-badge" id="hdr-badge">พนักงาน</span>
+      <div style="display:flex;align-items:center;gap:6px">
+        <div id="sync-dot" style="width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,0.4);flex-shrink:0;transition:background .3s" title="สถานะการซิงค์"></div>
+        <span class="header-badge" id="hdr-badge">พนักงาน</span>
+      </div>
     </div>
-    <div class="header-sub" id="hdr-date">กำลังโหลด...</div>
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div class="header-sub" id="hdr-date">กำลังโหลด...</div>
+      <div class="header-sub" id="sync-status" style="font-size:11px;opacity:.7">—</div>
+    </div>
   </div>
 </div>
 
@@ -517,14 +523,16 @@ textarea.form-input{resize:none;height:80px}
 
     <!-- ── Date Range ── -->
     <div class="card" style="margin-bottom:10px">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px">
         <div>
           <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:4px">ตั้งแต่วันที่</div>
-          <input type="date" id="dash-from" class="form-input" style="font-size:12px;padding:8px 10px" onchange="renderDashboard()"/>
+          <input type="date" id="dash-from" class="form-input" style="font-size:12px;padding:8px 10px" onchange="updateDashDateLabels();renderDashboard()"/>
+          <div id="dash-from-lbl" style="font-size:11px;color:var(--green);font-weight:600;margin-top:3px;text-align:center"></div>
         </div>
         <div>
           <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:4px">ถึงวันที่</div>
-          <input type="date" id="dash-to" class="form-input" style="font-size:12px;padding:8px 10px" onchange="renderDashboard()"/>
+          <input type="date" id="dash-to" class="form-input" style="font-size:12px;padding:8px 10px" onchange="updateDashDateLabels();renderDashboard()"/>
+          <div id="dash-to-lbl" style="font-size:11px;color:var(--green);font-weight:600;margin-top:3px;text-align:center"></div>
         </div>
       </div>
       <!-- Quick range chips -->
@@ -677,9 +685,15 @@ textarea.form-input{resize:none;height:80px}
           </div>
           <div id="url-st" style="font-size:12px;color:var(--text-muted);margin-top:6px"></div>
         </div>
-        <button onclick="testConn()" style="padding:9px 16px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:none;font-size:13px;cursor:pointer;font-family:'Sarabun',sans-serif;color:var(--text);width:100%">
-          🔌 ทดสอบการเชื่อมต่อ
-        </button>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">
+          <button onclick="testConn()" style="padding:9px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:none;font-size:13px;cursor:pointer;font-family:'Sarabun',sans-serif;color:var(--text)">
+            🔌 ทดสอบ
+          </button>
+          <button onclick="manualSync()" style="padding:9px 10px;border:1.5px solid var(--green);border-radius:var(--radius-sm);background:var(--green-light);font-size:13px;cursor:pointer;font-family:'Sarabun',sans-serif;color:var(--green);font-weight:600">
+            🔄 ซิงค์ตอนนี้
+          </button>
+        </div>
+        <div id="last-sync-info" style="font-size:11px;color:var(--text-muted);margin-top:6px;text-align:center"></div>
       </div>
       <div class="card">
         <div class="card-title">ตัวเลือกระบบ</div>
@@ -770,15 +784,19 @@ textarea.form-input{resize:none;height:80px}
 // ════════════════════════════════════════════
 //  STATE
 // ════════════════════════════════════════════
-var records  = [];
-var settings = { url:'', requirePhoto:false, requireGPS:false };
+var records   = [];
+var settings  = { url:'', requirePhoto:false, requireGPS:false };
 var employees = [];
-var adminPw  = 'admin1234';
-var isAdmin  = false;
-var currentType = 'in';
-var currentEmpId = null;
-var locationData = null;
-var currentWorkType = 'Office'; // default
+var adminPw   = 'admin1234';
+var isAdmin   = false;
+var currentType     = 'in';
+var currentEmpId    = null;
+var locationData    = null;
+var currentWorkType = 'Office';
+var syncTimer       = null;
+var isSyncing       = false;
+var lastSyncTime    = null;
+var SYNC_INTERVAL   = 30000; // 30 วินาที
 var photo1Data = null;
 var photo2Data = null;
 
@@ -1530,6 +1548,8 @@ function saveUrl(){
   saveCfg();
   document.getElementById('url-st').textContent=settings.url?'✅ บันทึก URL แล้ว':'ลบ URL แล้ว';
   toast('บันทึก URL แล้ว');
+  if(settings.url){ startAutoSync(); }
+  else { stopAutoSync(); }
 }
 function testConn(){
   var url=settings.url;
@@ -1626,6 +1646,10 @@ function renderAdminSettings(){
   var active=records.filter(function(r){return r.status!=='deleted';});
   document.getElementById('rec-count').textContent=active.length+' รายการ';
   document.getElementById('emp-count').textContent=employees.length+' คน';
+  var syncInfo = document.getElementById('last-sync-info');
+  if(syncInfo) syncInfo.textContent = lastSyncTime
+    ? 'ซิงค์ล่าสุด: '+pad(lastSyncTime.getHours())+':'+pad(lastSyncTime.getMinutes())+':'+pad(lastSyncTime.getSeconds())
+    : (settings.url ? 'ยังไม่ได้ซิงค์' : 'ยังไม่ได้ตั้งค่า URL');
 }
 function renderEmpSettings(){
   var el=document.getElementById('emp-setting-list');
@@ -1731,11 +1755,21 @@ var dashState = {
   empId: null
 };
 
+function updateDashDateLabels(){
+  var fromVal = document.getElementById('dash-from').value;
+  var toVal   = document.getElementById('dash-to').value;
+  var fromLbl = document.getElementById('dash-from-lbl');
+  var toLbl   = document.getElementById('dash-to-lbl');
+  if(fromLbl) fromLbl.textContent = fromVal ? formatDateTH(fromVal) : '';
+  if(toLbl)   toLbl.textContent   = toVal   ? formatDateTH(toVal)   : '';
+}
+
 function initDashboard(){
   try {
     if(!document.getElementById('dash-from').value){
       setDashRange('today');
     } else {
+      updateDashDateLabels();
       renderDashboard();
     }
   } catch(e){
@@ -1763,6 +1797,7 @@ function setDashRange(r){
   }
   document.getElementById('dash-from').value = from;
   document.getElementById('dash-to').value   = to;
+  updateDashDateLabels();
   ['today','week','month','custom'].forEach(function(v){
     document.getElementById('dr-'+v).classList.toggle('active', v===r);
   });
@@ -1790,8 +1825,10 @@ function getDashRecords(){
 
 // ── คำนวณ performance พนักงาน 1 คน ──────────────────────────
 function calcEmpPerf(empId, recs){
-  var inRecs  = recs.filter(function(r){ return r.empId===empId && r.type==='in'; });
-  var outRecs = recs.filter(function(r){ return r.empId===empId && r.type==='out'; });
+  // ถ้า recs ว่าง ให้ใช้ records ทั้งหมด (fallback)
+  var pool = (recs && recs.length>0) ? recs : records;
+  var inRecs  = pool.filter(function(r){ return r.empId===empId && r.type==='in'  && r.status!=='deleted'; });
+  var outRecs = pool.filter(function(r){ return r.empId===empId && r.type==='out' && r.status!=='deleted'; });
   var dates   = uniqueArr(inRecs.map(function(r){ return r.date; })).sort();
   var lateCount=0, earlyCount=0, otCount=0, onTimeCount=0;
   var totalOTMin=0, totalLateMin=0, totalWorkedMin=0;
@@ -1837,8 +1874,12 @@ function renderDashboard(){
   var dashRecs = getDashRecords();
   var now = new Date();
   document.getElementById('dash-updated').textContent = 'อัปเดต '+pad(now.getHours())+':'+pad(now.getMinutes());
-  if(dashState.view==='overview') renderOverview(dashRecs);
-  else renderIndividualView(dashRecs);
+  if(dashState.view==='overview'){
+    renderOverview(dashRecs);
+  } else {
+    renderEmpSelector(); // อัปเดตปุ่มพนักงานทุกครั้ง
+    renderIndividualView(dashRecs);
+  }
 }
 
 // ── OVERVIEW ───────────────────────────────────────────────
@@ -1936,7 +1977,7 @@ function renderLeaderboard(recs){
       +'<div style="font-size:11px;color:var(--text-muted)">ไม่มีข้อมูลในช่วงนี้</div></div>'
       +'<div style="font-size:20px">—</div></div>';
     var scoreColor = p.score>=80?'var(--green)':p.score>=60?'#f59e0b':'#ef4444';
-    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid rgba(0,0,0,.06);cursor:pointer" onclick="quickViewEmp(\'+p.emp.id+\')">'
+    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid rgba(0,0,0,.06);cursor:pointer" onclick="quickViewEmp(&apos;'+p.emp.id+'&apos;)">'
       +'<div style="font-size:20px;width:28px;text-align:center">'+(medals[i]||'<span style="font-size:13px;color:var(--text-muted)">'+(i+1)+'</span>')+'</div>'
       +'<div class="avatar '+p.emp.cls+'" style="width:34px;height:34px;font-size:12px">'+p.emp.av+'</div>'
       +'<div style="flex:1;min-width:0">'
@@ -2002,24 +2043,42 @@ function renderDailyTable(recs){
 // ── INDIVIDUAL VIEW ──────────────────────────────────────────
 function renderEmpSelector(){
   var sel = document.getElementById('dash-emp-selector');
+  if(!sel) return;
+  if(employees.length===0){
+    sel.innerHTML='<div style="font-size:13px;color:var(--text-muted);padding:8px">ยังไม่มีรายชื่อพนักงาน — ไปที่ Admin → พนักงาน เพื่อเพิ่ม</div>';
+    return;
+  }
+  var from = document.getElementById('dash-from').value;
+  var to   = document.getElementById('dash-to').value;
   sel.innerHTML = employees.map(function(e){
     var isActive = dashState.empId===e.id;
-    return '<button class="'+(isActive?'filter-chip active':'filter-chip')+'" onclick="selectDashEmp(\'+e.id+\')">'
-      +'<span style="font-family:monospace;font-size:10px;opacity:.7">'+e.id+'</span> '+e.name+'</button>';
+    // นับจำนวน record ในช่วงที่เลือก
+    var cnt = records.filter(function(r){
+      return r.empId===e.id && r.status!=='deleted'
+        && (!from||r.date>=from) && (!to||r.date<=to);
+    }).length;
+    var cntBadge = cnt>0
+      ? '<span style="font-size:10px;background:rgba(255,255,255,0.3);padding:1px 5px;border-radius:8px;margin-left:4px">'+cnt+'</span>'
+      : '<span style="font-size:10px;opacity:.5;margin-left:4px">-</span>';
+    return '<button style="padding:8px 12px;border:1.5px solid '+(isActive?'var(--green)':'var(--border)')+';border-radius:20px;font-size:13px;font-weight:'+(isActive?'600':'400')+';cursor:pointer;background:'+(isActive?'var(--green)':'#fff')+';color:'+(isActive?'#fff':'var(--text-muted)')+';white-space:nowrap;transition:all .2s" onclick="selectDashEmp(&apos;'+e.id+'&apos;)">'
+      +e.name+cntBadge+'</button>';
   }).join('');
 }
 
 function selectDashEmp(empId){
   dashState.empId = empId;
+  // ตรวจสอบว่ามีช่วงวันที่หรือยัง ถ้าไม่มีให้ set เป็นวันนี้
+  if(!document.getElementById('dash-from').value){
+    setDashRange('today');
+    return; // setDashRange จะเรียก renderDashboard ต่อเอง
+  }
   renderEmpSelector();
   renderIndividualView(getDashRecords());
 }
 
 function quickViewEmp(empId){
-  setDashView('individual');
   dashState.empId = empId;
-  renderEmpSelector();
-  renderIndividualView(getDashRecords());
+  setDashView('individual'); // setDashView จะเรียก renderEmpSelector + renderDashboard
 }
 
 function renderIndividualView(recs){
@@ -2030,9 +2089,29 @@ function renderIndividualView(recs){
   }
   var emp  = employees.find(function(e){ return e.id===dashState.empId; });
   if(!emp){ container.innerHTML='<div class="empty">ไม่พบข้อมูลพนักงาน</div>'; return; }
-  var perf = calcEmpPerf(emp.id, recs);
-  var empRecs = recs.filter(function(r){ return r.empId===emp.id; });
+  // ใช้ records ทั้งหมดในช่วงวันที่ที่เลือก
+  // ถ้า recs ว่างเปล่า (ช่วงวันที่ไม่ตรง) ให้ fallback ใช้ records ทั้งหมด
+  var from = document.getElementById('dash-from').value;
+  var to   = document.getElementById('dash-to').value;
+  var allEmpRecs = records.filter(function(r){
+    return r.empId===emp.id && r.status!=='deleted'
+      && (!from || r.date>=from)
+      && (!to   || r.date<=to);
+  });
+  var perf = calcEmpPerf(emp.id, allEmpRecs);
+  var empRecs = allEmpRecs;
   var scoreColor = perf.score>=80?'var(--green)':perf.score>=60?'#f59e0b':'#ef4444';
+
+  // ถ้าไม่มีข้อมูลในช่วงนี้
+  if(empRecs.length===0){
+    container.innerHTML='<div class="card" style="text-align:center;padding:30px 16px">'
+      +'<div style="font-size:40px;margin-bottom:12px;opacity:.4">📭</div>'
+      +'<div style="font-size:15px;font-weight:600;margin-bottom:6px">'+emp.name+'</div>'
+      +'<div style="font-size:13px;color:var(--text-muted)">ไม่มีข้อมูลในช่วงวันที่ที่เลือก</div>'
+      +'<div style="font-size:12px;color:var(--text-muted);margin-top:8px">'+(from&&to?from+' ถึง '+to:'กรุณาเลือกช่วงวันที่')+'</div>'
+      +'</div>';
+    return;
+  }
 
   // header card
   var html = '<div class="card" style="margin-bottom:10px">'
@@ -2126,8 +2205,127 @@ function renderIndividualView(recs){
   container.innerHTML = html;
 }
 
+
+// ════════════════════════════════════════════
+//  REAL-TIME SYNC ENGINE
+//  ดึงข้อมูลจาก Google Sheet เป็น source of truth
+// ════════════════════════════════════════════
+
+function setSyncStatus(status, msg){
+  var dot = document.getElementById('sync-dot');
+  var lbl = document.getElementById('sync-status');
+  if(!dot || !lbl) return;
+  var colors = { syncing:'#fbbf24', ok:'#4ade80', error:'#f87171', offline:'rgba(255,255,255,0.3)' };
+  dot.style.background = colors[status] || colors.offline;
+  lbl.textContent = msg || '';
+}
+
+function syncFromSheet(silent){
+  var url = settings.url;
+  if(!url){ setSyncStatus('offline','ไม่มี URL'); return; }
+  if(isSyncing) return;
+  isSyncing = true;
+  if(!silent) setSyncStatus('syncing','กำลังซิงค์...');
+
+  fetch(url + '?action=getAll')
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      isSyncing = false;
+      if(data.status !== 'ok'){ setSyncStatus('error','ซิงค์ผิดพลาด'); return; }
+
+      // ── อัปเดต records จาก Sheet ──────────────────────
+      if(Array.isArray(data.records)){
+        records = data.records.map(function(r){
+          return {
+            id:        r.recordId  || '',
+            empId:     r.empId     || '',
+            name:      r.name      || '',
+            dept:      r.dept      || '',
+            type:      r.type==='เข้างาน' ? 'in' : 'out',
+            workType:  r.workType  || 'Office',
+            time:      r.time      || '',
+            date:      r.date      || '',
+            location:  r.location  || '',
+            note:      r.note      || '',
+            createdAt: r.createdAt || '',
+            updatedAt: r.updatedAt || '',
+            status:    r.status    || 'active'
+          };
+        }).filter(function(r){ return r.status !== 'deleted'; });
+        // เก็บ cache ไว้ offline fallback
+        try{ localStorage.setItem('att_recs', JSON.stringify(records)); }catch(e){}
+      }
+
+      // ── อัปเดต employees จาก Sheet ──────────────────────
+      if(Array.isArray(data.employees) && data.employees.length > 0){
+        var clss = ['av-g','av-b','av-a','av-c'];
+        employees = data.employees.map(function(e, i){
+          var name = e.name || '';
+          var initials = name.split(' ').map(function(w){return w[0]||'';}).slice(0,2).join('').toUpperCase();
+          return {
+            id:   e.empId || '',
+            name: name,
+            role: e.role  || '',
+            av:   initials || name[0] || '?',
+            cls:  clss[i % clss.length]
+          };
+        });
+        try{ localStorage.setItem('att_emps', JSON.stringify(employees)); }catch(e){}
+      }
+
+      lastSyncTime = new Date();
+      var timeStr  = pad(lastSyncTime.getHours())+':'+pad(lastSyncTime.getMinutes())+':'+pad(lastSyncTime.getSeconds());
+      setSyncStatus('ok', 'ซิงค์แล้ว '+timeStr);
+
+      // ── รีเฟรช UI ──────────────────────────────────────
+      var activeScreen = document.querySelector('.screen.active');
+      var activeId     = activeScreen ? activeScreen.id : '';
+      if(activeId === 's-home')      renderHome();
+      if(activeId === 's-history')   renderHistory();
+      if(activeId === 's-dashboard') renderDashboard();
+      if(activeId === 's-admin')     renderAdminPanel();
+    })
+    .catch(function(err){
+      isSyncing = false;
+      setSyncStatus('error', 'ออฟไลน์');
+      console.warn('Sync error:', err);
+    });
+}
+
+function startAutoSync(){
+  if(syncTimer) clearInterval(syncTimer);
+  syncFromSheet(false); // sync ทันทีเมื่อเริ่ม
+  syncTimer = setInterval(function(){
+    syncFromSheet(true); // silent sync ทุก 30 วิ
+  }, SYNC_INTERVAL);
+}
+
+function stopAutoSync(){
+  if(syncTimer){ clearInterval(syncTimer); syncTimer=null; }
+  setSyncStatus('offline','หยุดซิงค์');
+}
+
+// Manual sync — ปุ่มใน Settings
+function manualSync(){
+  setSyncStatus('syncing','กำลังซิงค์...');
+  syncFromSheet(false);
+  toast('🔄 กำลังดึงข้อมูลจาก Google Sheets...');
+}
+
+// ══════════════════════════════════════════
+// เมื่อ tab กลับมา focus ให้ sync ทันที
+// ══════════════════════════════════════════
+document.addEventListener('visibilitychange', function(){
+  if(!document.hidden && settings.url) syncFromSheet(true);
+});
+
 // ── Init ───────────────────────────────────
 renderHome();
+// เริ่ม auto-sync หลัง load
+setTimeout(function(){
+  if(settings.url) startAutoSync();
+  else setSyncStatus('offline','ยังไม่ตั้งค่า URL');
+}, 500);
 </script>
 </body>
 </html>
