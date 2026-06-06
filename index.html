@@ -845,12 +845,14 @@ function toast(msg, dur){
 // ════════════════════════════════════════════
 function updateDateTime(){
   var n = new Date();
-  var days=['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
-  var months=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  var days   = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
+  var months = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
   var dateStr = 'วัน'+days[n.getDay()]+' '+n.getDate()+' '+months[n.getMonth()]+' '+(n.getFullYear()+543);
   var timeStr = pad(n.getHours())+':'+pad(n.getMinutes());
-  document.getElementById('hdr-date').textContent = dateStr+' · '+timeStr+' น.';
-  document.getElementById('date-chip-txt').textContent = dateStr;
+  var hdDate = document.getElementById('hdr-date');
+  var chipTxt = document.getElementById('date-chip-txt');
+  if(hdDate)  hdDate.textContent  = dateStr+' · '+timeStr+' น.';
+  if(chipTxt) chipTxt.textContent = dateStr;
 }
 updateDateTime();
 setInterval(updateDateTime, 30000);
@@ -965,20 +967,22 @@ function renderHome(){
 //  CLICK EMPLOYEE
 // ════════════════════════════════════════════
 function clickEmp(empId){
-  var st=getEmpStatus(empId);
-  if(st==='done'){
-    showLockedScreen(empId); return;
-  }
-  var emp=employees.find(function(e){return e.id===empId;});
-  // ถ้าไม่พบพนักงาน (อาจเกิดจาก sync ระหว่างทาง) ให้ sync ใหม่
-  if(!emp){
-    toast('⚠️ ไม่พบข้อมูลพนักงาน กำลังรีเฟรช...');
-    if(settings.url) syncFromSheet(false);
-    return;
-  }
-  currentEmpId=empId;
-  document.getElementById('f-name').value=emp.name;
-  document.getElementById('f-dept').value=emp.role;
+  try {
+    var st=getEmpStatus(empId);
+    if(st==='done'){
+      showLockedScreen(empId); return;
+    }
+    // หาพนักงานจาก employees array
+    var emp=employees.find(function(e){return e.id===empId;});
+    // ถ้าไม่พบ ลอง sync แล้วเปิด form ด้วยข้อมูล empId โดยตรง
+    if(!emp){
+      emp = { id:empId, name:empId, role:'', av:'?', cls:'av-g' };
+      toast('⚠️ ไม่พบข้อมูลพนักงาน — กรุณา sync ใหม่');
+      if(settings.url) syncFromSheet(false);
+    }
+    currentEmpId=empId;
+    document.getElementById('f-name').value=emp.name||empId;
+    document.getElementById('f-dept').value=emp.role||'';
   locationData=null; photo1Data=null; photo2Data=null;
   resetWorkType();
   document.getElementById('loc-box').className='loc-box';
@@ -998,8 +1002,12 @@ function clickEmp(empId){
   document.getElementById('sub-lbl').textContent=defaultType==='in'?'บันทึกเวลาเข้างาน':'บันทึกเวลาออกงาน';
   // ตรวจสอบว่า f-time มีค่าหรือไม่ ถ้าว่างให้ set ใหม่
   var timeEl = document.getElementById('f-time');
-  if(!timeEl.value) timeEl.value = nowStr();
+  if(timeEl && !timeEl.value) timeEl.value = nowStr();
   showScreen('s-form');
+  } catch(err) {
+    console.error('clickEmp error:', err);
+    toast('เกิดข้อผิดพลาด: ' + err.message);
+  }
 }
 
 function applyTypeUI(type, st){
@@ -1039,14 +1047,17 @@ function renderLockBanner(empId){
 }
 
 function showLockedScreen(empId){
-  var emp=employees.find(function(e){return e.id===empId;});
-  var inRec=getEmpRecord(empId,'in');
-  var outRec=getEmpRecord(empId,'out');
-  document.getElementById('s-icon').textContent='🔒';
-  document.getElementById('s-icon').className='s-icon red';
-  document.getElementById('s-title').textContent=emp.name+' — ครบแล้ววันนี้';
-  document.getElementById('s-sub').textContent='บันทึกเข้า-ออกครบแล้ว ไม่สามารถแก้ไขได้\nต้องใช้สิทธิ์ Admin เท่านั้น';
-  document.getElementById('s-badge').style.display='none';
+  var emp    = employees.find(function(e){return e.id===empId;}) || {name:empId,id:empId};
+  var inRec  = getEmpRecord(empId,'in');
+  var outRec = getEmpRecord(empId,'out');
+  var sIcon  = document.getElementById('s-icon');
+  var sTitle = document.getElementById('s-title');
+  var sSub   = document.getElementById('s-sub');
+  if(sIcon)  { sIcon.textContent='🔒'; sIcon.className='s-icon red'; }
+  if(sTitle) sTitle.textContent = emp.name+' — ครบแล้ววันนี้';
+  if(sSub) sSub.textContent='บันทึกเข้า-ออกครบแล้ว ไม่สามารถแก้ไขได้ — ต้องใช้สิทธิ์ Admin';
+  var sBadge = document.getElementById('s-badge');
+  if(sBadge) sBadge.style.display='none';
   document.getElementById('sum-card').innerHTML=
     (inRec?'<div class="detail-row"><span class="dk">เช็คอิน</span><span class="dv">'+inRec.time+' น.</span></div>':'')
     +(outRec?'<div class="detail-row"><span class="dk">เช็คเอาต์</span><span class="dv">'+outRec.time+' น.</span></div>':'')
@@ -1346,6 +1357,48 @@ function uniqueArr(arr){
   return out;
 }
 
+// แปลง time จาก Google Sheet → HH:MM
+// Sheet อาจส่งมาเป็น "10:30", "10:30:00", หรือ ISO "1899-12-30T10:30:00.000Z"
+function parseSheetTime(t){
+  if(!t) return '';
+  var s = String(t).trim();
+  // ISO datetime: 1899-12-30T10:30:00.000Z
+  if(s.indexOf('T') !== -1){
+    var parts = s.split('T');
+    if(parts[1]){
+      var tp = parts[1].split(':');
+      return pad(parseInt(tp[0]||0)) + ':' + pad(parseInt(tp[1]||0));
+    }
+  }
+  // HH:MM:SS or HH:MM
+  if(s.indexOf(':') !== -1){
+    var tp2 = s.split(':');
+    return pad(parseInt(tp2[0]||0)) + ':' + pad(parseInt(tp2[1]||0));
+  }
+  return s;
+}
+
+// แปลง date จาก Google Sheet → YYYY-MM-DD
+// Sheet อาจส่งมาเป็น "2026-05-15", ISO, หรือ Date serial number
+function parseSheetDate(d){
+  if(!d) return '';
+  var s = String(d).trim();
+  // ISO datetime: 2026-05-15T00:00:00.000Z
+  if(s.indexOf('T') !== -1) return s.split('T')[0];
+  // Already YYYY-MM-DD
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  // Date as number (Excel serial)
+  if(/^\d+$/.test(s)){
+    // Excel date serial: 1 = 1900-01-01
+    var excelEpoch = new Date(1900, 0, 1);
+    var msPerDay = 86400000;
+    var days = parseInt(s) - 2; // Excel has a leap year bug (1900 not leap)
+    var d2 = new Date(excelEpoch.getTime() + days * msPerDay);
+    return d2.getFullYear() + '-' + pad(d2.getMonth()+1) + '-' + pad(d2.getDate());
+  }
+  return s;
+}
+
 // ════════════════════════════════════════════
 //  WORK TIME CONFIG
 // ════════════════════════════════════════════
@@ -1354,8 +1407,11 @@ var WORK_END   = '17:30';  // เวลาเลิกงาน
 var BREAK_MIN  = 60;       // พักกลางวัน (นาที)
 
 function timeToMin(t){
-  var parts=t.split(':');
-  return parseInt(parts[0])*60+parseInt(parts[1]);
+  if(!t || typeof t !== 'string' || t.indexOf(':') === -1) return 0;
+  var parts = t.split(':');
+  var h = parseInt(parts[0]) || 0;
+  var m = parseInt(parts[1]) || 0;
+  return h*60 + m;
 }
 function minToStr(m){
   if(m<=0) return '';
@@ -1369,6 +1425,10 @@ function minToStr(m){
 function calcStatus(r){
   var startMin = timeToMin(WORK_START);
   var endMin   = timeToMin(WORK_END);
+  // ตรวจสอบ time ก่อน — ถ้าไม่ใช่ HH:MM ให้ return ปกติ
+  if(!r.time || r.time.indexOf(':') === -1 || r.time.length > 8){
+    return { tag:'ok', label:'ปกติ', detail:'', lateMin:0, earlyMin:0, otMin:0 };
+  }
   var recMin   = timeToMin(r.time);
   var result   = { tag:'ok', label:'ปกติ', detail:'', lateMin:0, earlyMin:0, otMin:0 };
 
@@ -1524,9 +1584,10 @@ function renderHistList(data){
         }
       }
       var wtIcon=getWorkTypeIcon(r.workType);
+      var dispTime = r.time || '--:--';
       return '<div class="hist-card" style="margin-bottom:6px">'
         +'<div class="hist-info"><div class="hname">'+r.name+'</div>'
-        +'<div class="hdate">'+r.time+' น.'+( r.workType?' · '+wtIcon+' '+r.workType:'')+( r.location?' · 📍':'')+'</div>'
+        +'<div class="hdate">'+dispTime+' น.'+( r.workType?' · '+wtIcon+' '+r.workType:'')+( r.location?' · 📍':'')+'</div>'
         +(r.note?'<div class="hdate">'+r.note+'</div>':'')+otRow
         +'</div>'
         +'<div class="hist-right" style="flex-direction:column;align-items:flex-end;gap:4px">'
@@ -1544,17 +1605,22 @@ function renderHistList(data){
       return '';
     }).join('');
 
+    var safeDateTH = (date && date.length===10) ? formatDateTH(date) : (date||'ไม่ทราบวันที่');
     return '<div style="margin-bottom:14px">'
-      +'<div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:6px;padding:0 2px">'+formatDateTH(date)+'</div>'
+      +'<div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:6px;padding:0 2px">'+safeDateTH+'</div>'
       +dayHtml+otSummaries
       +'</div>';
   }).join('');
 }
 
 function formatDateTH(dateStr){
-  var d=new Date(dateStr+'T00:00:00');
-  var days=['อา.','จ.','อ.','พ.','พฤ.','ศ.','ส.'];
-  var months=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  if(!dateStr || typeof dateStr !== 'string' || dateStr.length < 8) return dateStr || '-';
+  // รองรับ YYYY-MM-DD เท่านั้น
+  if(!/^\d{4}-\d{2}-\d{2}/.test(dateStr)) return dateStr;
+  var d = new Date(dateStr + 'T00:00:00');
+  if(isNaN(d.getTime())) return dateStr;
+  var days   = ['อา.','จ.','อ.','พ.','พฤ.','ศ.','ส.'];
+  var months = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
   return days[d.getDay()]+' '+d.getDate()+' '+months[d.getMonth()]+' '+(d.getFullYear()+543);
 }
 
@@ -1658,10 +1724,14 @@ function checkAdmin(){
 }
 function logoutAdmin(){ isAdmin=false; toast('ออกจากระบบ Admin แล้ว'); goHome(); }
 function renderAdminSettings(){
-  document.getElementById('set-url').value=settings.url||'';
-  document.getElementById('url-st').textContent=settings.url?'✅ ตั้งค่า URL แล้ว':'';
-  document.getElementById('tgl-gps').className='toggle'+(settings.requireGPS?' on':'');
-  document.getElementById('tgl-photo').className='toggle'+(settings.requirePhoto?' on':'');
+  var setUrl  = document.getElementById('set-url');
+  var urlSt   = document.getElementById('url-st');
+  var tglGps  = document.getElementById('tgl-gps');
+  var tglPhoto= document.getElementById('tgl-photo');
+  if(setUrl)   setUrl.value     = settings.url||'';
+  if(urlSt)    urlSt.textContent= settings.url?'✅ ตั้งค่า URL แล้ว':'';
+  if(tglGps)   tglGps.className = 'toggle'+(settings.requireGPS?' on':'');
+  if(tglPhoto) tglPhoto.className='toggle'+(settings.requirePhoto?' on':'');
   var active=records.filter(function(r){return r.status!=='deleted';});
   document.getElementById('rec-count').textContent=active.length+' รายการ';
   document.getElementById('emp-count').textContent=employees.length+' คน';
@@ -1703,7 +1773,7 @@ function renderAdminPanel(){
       +'<div class="admin-rec-info"><div class="admin-rec-name">'+r.name+'</div>'
       +'<div class="admin-rec-sub">'+r.date+' · '+r.time+' น.</div></div>'
       +'<span class="badge '+bc+'" style="margin-right:8px">'+tl+'</span>'
-      +'<button class="btn-del" onclick="adminDelete(\''+r.id+'\')">ลบ</button>'
+      +'<button class="btn-del" onclick="adminDelete(&apos;'+r.id+'&apos;)">ลบ</button>'
       +'</div>';
   }).join('');
 }
@@ -2207,13 +2277,13 @@ function renderIndividualView(recs){
         +'<div style="display:flex;gap:10px">'
         +(inR?'<div style="flex:1;background:var(--green-light);border-radius:8px;padding:8px 10px">'
           +'<div style="font-size:10px;color:var(--text-muted);margin-bottom:2px">📥 เข้างาน</div>'
-          +'<div style="font-size:14px;font-weight:600">'+inR.time+' น.</div>'
+          +'<div style="font-size:14px;font-weight:600">'+(inR.time||'--:--')+' น.</div>'
           +(inSt&&inSt.tag!=='ok'?'<span class="tag-'+inSt.tag+'" style="font-size:10px">'+inSt.detail+'</span>':'<span class="tag-ok" style="font-size:10px">ตรงเวลา</span>')
           +(inR.workType?'<div style="font-size:10px;color:var(--text-muted);margin-top:3px">'+getWorkTypeIcon(inR.workType)+' '+inR.workType+'</div>':'')
           +'</div>':'<div style="flex:1;background:var(--gray-light);border-radius:8px;padding:8px 10px;opacity:.4"><div style="font-size:10px;color:var(--text-muted)">📥 เข้างาน</div><div style="font-size:13px">—</div></div>')
         +(outR?'<div style="flex:1;background:#e8f0fe;border-radius:8px;padding:8px 10px">'
           +'<div style="font-size:10px;color:var(--text-muted);margin-bottom:2px">📤 ออกงาน</div>'
-          +'<div style="font-size:14px;font-weight:600">'+outR.time+' น.</div>'
+          +'<div style="font-size:14px;font-weight:600">'+(outR.time||'--:--')+' น.</div>'
           +(outSt&&outSt.tag!=='ok'?'<span class="tag-'+outSt.tag+'" style="font-size:10px">'+outSt.detail+'</span>':'<span class="tag-ok" style="font-size:10px">ตรงเวลา</span>')
           +(outR.workType?'<div style="font-size:10px;color:var(--text-muted);margin-top:3px">'+getWorkTypeIcon(outR.workType)+' '+outR.workType+'</div>':'')
           +'</div>':'<div style="flex:1;background:var(--gray-light);border-radius:8px;padding:8px 10px;opacity:.4"><div style="font-size:10px;color:var(--text-muted)">📤 ออกงาน</div><div style="font-size:13px">—</div></div>')
@@ -2231,12 +2301,14 @@ function renderIndividualView(recs){
 // ════════════════════════════════════════════
 
 function setSyncStatus(status, msg){
+  try {
   var dot = document.getElementById('sync-dot');
   var lbl = document.getElementById('sync-status');
   if(!dot || !lbl) return;
   var colors = { syncing:'#fbbf24', ok:'#4ade80', error:'#f87171', offline:'rgba(255,255,255,0.3)' };
   dot.style.background = colors[status] || colors.offline;
   lbl.textContent = msg || '';
+  } catch(e2) { /* silent */ }
 }
 
 function syncFromSheet(silent){
@@ -2262,15 +2334,15 @@ function syncFromSheet(silent){
             dept:      r.dept      || '',
             type:      r.type==='เข้างาน' ? 'in' : 'out',
             workType:  r.workType  || 'Office',
-            time:      r.time      || '',
-            date:      r.date      || '',
+            time:      parseSheetTime(r.time),
+            date:      parseSheetDate(r.date),
             location:  r.location  || '',
             note:      r.note      || '',
             createdAt: r.createdAt || '',
             updatedAt: r.updatedAt || '',
             status:    r.status    || 'active'
           };
-        }).filter(function(r){ return r.status !== 'deleted'; });
+        }).filter(function(r){ return r.status !== 'deleted' && r.date && r.empId; });
         // เก็บ cache ไว้ offline fallback
         try{ localStorage.setItem('att_recs', JSON.stringify(records)); }catch(e){}
       }
